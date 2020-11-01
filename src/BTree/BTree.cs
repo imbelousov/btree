@@ -12,6 +12,10 @@ namespace BTree
 
         public BTree(int t, IComparer<T> comparer)
         {
+            if (t <= 0)
+                throw new ArgumentException($"'{nameof(t)}' must be a positive number", nameof(t));
+            if (comparer == null)
+                throw new ArgumentNullException(nameof(comparer));
             _t = t;
             _comparer = comparer;
         }
@@ -30,6 +34,8 @@ namespace BTree
 
         public virtual bool Update(T item, Func<T, T> updater)
         {
+            if (updater == null)
+                throw new ArgumentNullException(nameof(updater));
             InitIfNeeded();
             return UpdateInternal(item, updater);
         }
