@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 
 namespace BTree.Test
 {
-    [TestFixture(typeof(BTree<>), 1)]
     [TestFixture(typeof(BTree<>), 2)]
     [TestFixture(typeof(BTree<>), 3)]
     [TestFixture(typeof(BTree<>), 10)]
     [TestFixture(typeof(BTree<>), 100)]
-    [TestFixture(typeof(DiskBTree<>), 1)]
     [TestFixture(typeof(DiskBTree<>), 2)]
     [TestFixture(typeof(DiskBTree<>), 3)]
     [TestFixture(typeof(DiskBTree<>), 10)]
@@ -45,6 +44,37 @@ namespace BTree.Test
         {
             _tree.Add(addedValue);
             Assert.IsFalse(_tree.Contains(value));
+        }
+
+        [Test]
+        public void AddManyValuesAndCheckAllOfThem()
+        {
+            var values = Enumerable.Range(-10000, 20000).ToList();
+            foreach (var value in values)
+                _tree.Add(value);
+            foreach (var value in values)
+                Assert.IsTrue(_tree.Contains(value));
+        }
+
+        [Test]
+        public void AddManyValuesAndCheckAnother()
+        {
+            var values = Enumerable.Range(-10000, 20000).ToList();
+            foreach (var value in values)
+                _tree.Add(value * 2);
+            foreach (var value in values)
+                Assert.IsFalse(_tree.Contains(value * 2 + 1));
+        }
+
+        [Test]
+        public void AddManyValuesButInRandomOrderAndCheckAllOfThem()
+        {
+            var random = new Random(896823);
+            var values = Enumerable.Range(-10000, 20000).ToList();
+            foreach (var value in values.OrderBy(x => random.Next()))
+                _tree.Add(value);
+            foreach (var value in values.OrderBy(x => random.Next()))
+                Assert.IsTrue(_tree.Contains(value));
         }
 
         public Contains(Type type, int t)

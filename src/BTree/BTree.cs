@@ -12,8 +12,8 @@ namespace BTree
 
         public BTree(int t, IComparer<T> comparer)
         {
-            if (t <= 0)
-                throw new ArgumentException($"'{nameof(t)}' must be a positive number", nameof(t));
+            if (t <= 1)
+                throw new ArgumentException($"'{nameof(t)}' must be a positive number and greater than 1", nameof(t));
             if (comparer == null)
                 throw new ArgumentNullException(nameof(comparer));
             _t = t;
