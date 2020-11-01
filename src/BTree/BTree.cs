@@ -9,6 +9,8 @@ namespace BTree
         private readonly IComparer<T> _comparer;
 
         protected BTreeNode Root { get; set; }
+        protected int MaxItemsCount { get; }
+        protected int MaxChildrenCount { get; }
 
         public BTree(int t, IComparer<T> comparer)
         {
@@ -18,6 +20,8 @@ namespace BTree
                 throw new ArgumentNullException(nameof(comparer));
             _t = t;
             _comparer = comparer;
+            MaxItemsCount = 2 * _t - 1;
+            MaxChildrenCount = 2 * _t;
         }
 
         public virtual void Add(T item)
@@ -65,10 +69,6 @@ namespace BTree
         protected virtual void Delete(BTreeNode node)
         {
         }
-
-        protected int MaxItemsCount => 2 * _t - 1;
-
-        protected int MaxChildrenCount => 2 * _t;
 
         protected virtual BTreeNode AllocateNode()
         {

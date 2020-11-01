@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 
@@ -97,7 +98,11 @@ namespace BTree.Test
 
         private BTree<int> CreateTree(Type type, int t)
         {
-            return new BTree<int>(t, Comparer<int>.Default);
+            if (type == typeof(BTree<>))
+                return new BTree<int>(t, Comparer<int>.Default);
+            if (type == typeof(DiskBTree<>))
+                return new Int32DiskBTree(new MemoryStream(), t, Comparer<int>.Default);
+            throw new NotSupportedException();
         }
 
         private readonly Type _type;

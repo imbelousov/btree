@@ -1,36 +1,57 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace BTree
 {
-    public abstract class DiskBTree<T> : BTree<T>, IDisposable, IAsyncDisposable
+    public abstract class DiskBTree<T> : BTree<T>, IDisposable
     {
         private const int HeaderSize = 24;
         private const int ExpansionSize = 1024;
         private readonly Stream _stream;
+        private readonly bool _leaveOpen;
 
         protected abstract int ItemLength { get; }
 
         protected int NodeSize => 1 + 4 + ItemLength * MaxItemsCount + 8 * MaxChildrenCount;
 
-        public DiskBTree(string fileName, int t, IComparer<T> comparer)
+        protected DiskBTree(Stream stream, bool leaveOpen, int t, IComparer<T> comparer)
             : base(t, comparer)
         {
-            _stream = File.Open(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+            if (stream == null)
+                throw new ArgumentNullException(nameof(stream));
+            if (!stream.CanRead)
+                throw new ArgumentException("Expected a readable stream", nameof(stream));
+            if (!stream.CanWrite)
+                throw new ArgumentException("Expected a writable stream", nameof(stream));
+            if (!stream.CanSeek)
+                throw new ArgumentException("Expected a seekable stream", nameof(stream));
+            _stream = stream;
+            _leaveOpen = leaveOpen;
             if (_stream.Length < HeaderSize)
                 Init();
         }
 
-        public void Dispose()
+        protected DiskBTree(Stream stream, int t, IComparer<T> comparer)
+            : this(stream, false, t, comparer)
         {
-            _stream.Dispose();
         }
 
-        public ValueTask DisposeAsync()
+        protected DiskBTree(string fileName, int t, IComparer<T> comparer)
+            : this(File.Open(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite), t, comparer)
         {
-            return _stream.DisposeAsync();
+        }
+
+        ~DiskBTree()
+        {
+            Dispose();
+        }
+
+        public virtual void Dispose()
+        {
+            if (!_leaveOpen)
+                _stream.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public override void Add(T item)
