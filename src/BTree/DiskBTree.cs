@@ -5,15 +5,15 @@ using System.Threading.Tasks;
 
 namespace BTree
 {
-    public abstract class DiskBTree<T> : BTreeBase<T>, IDisposable, IAsyncDisposable
+    public abstract class DiskBTree<T> : BTree<T>, IDisposable, IAsyncDisposable
     {
         private const int HeaderSize = 24;
         private const int ExpansionSize = 1024;
         private readonly Stream _stream;
 
-        protected abstract int KeyLength { get; }
+        protected abstract int ItemLength { get; }
 
-        protected int NodeSize => 1 + 4 + KeyLength * MaxKeysCount + 8 * MaxChildrenCount;
+        protected int NodeSize => 1 + 4 + ItemLength * MaxItemsCount + 8 * MaxChildrenCount;
 
         public DiskBTree(string fileName, int t, IComparer<T> comparer)
             : base(t, comparer)
@@ -33,11 +33,11 @@ namespace BTree
             return _stream.DisposeAsync();
         }
 
-        public override void Insert(T key)
+        public override void Add(T item)
         {
             try
             {
-                base.Insert(key);
+                base.Add(item);
             }
             finally
             {
@@ -45,11 +45,11 @@ namespace BTree
             }
         }
 
-        public override bool Remove(T key)
+        public override bool Remove(T item)
         {
             try
             {
-                return base.Remove(key);
+                return base.Remove(item);
             }
             finally
             {
@@ -57,11 +57,11 @@ namespace BTree
             }
         }
 
-        public override bool Update(T key, Func<T, T> updater)
+        public override bool Update(T item, Func<T, T> updater)
         {
             try
             {
-                return base.Update(key, updater);
+                return base.Update(item, updater);
             }
             finally
             {
@@ -69,11 +69,11 @@ namespace BTree
             }
         }
 
-        public override bool Contains(T key)
+        public override bool Contains(T item)
         {
             try
             {
-                return base.Contains(key);
+                return base.Contains(item);
             }
             finally
             {
@@ -81,27 +81,27 @@ namespace BTree
             }
         }
 
-        protected abstract void SerializeKey(T key, Span<byte> buffer);
+        protected abstract void SerializeItem(T item, Span<byte> buffer);
 
-        protected abstract T DeserializeKey(ReadOnlySpan<byte> buffer);
+        protected abstract T DeserializeItem(ReadOnlySpan<byte> buffer);
 
         protected override void Write(BTreeNode node)
         {
             var diskNode = (DiskBTreeNode) node;
-            var buffer = (Span<byte>) stackalloc byte[1 + 4 + node.N * KeyLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
+            var buffer = (Span<byte>) stackalloc byte[1 + 4 + node.N * ItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
             if (diskNode.Id < 0)
                 diskNode.Id = FindNewNodeId();
 
             buffer[0] = (byte) (node.IsLeaf ? NodeType.Leaf : NodeType.NonLeaf);
             BitConverter.TryWriteBytes(buffer.Slice(1, 4), node.N);
             for (var i = 0; i < node.N; i++)
-                SerializeKey(node.Keys[i], buffer.Slice(1 + 4 + i * KeyLength, KeyLength));
+                SerializeItem(node.Items[i], buffer.Slice(1 + 4 + i * ItemLength, ItemLength));
             if (!node.IsLeaf)
             {
                 for (var i = 0; i < node.N + 1; i++)
                 {
                     var childNode = (DiskBTreeNode) node.Children[i];
-                    BitConverter.TryWriteBytes(buffer.Slice(1 + 4 + node.N * KeyLength + i * 8, 8), childNode?.Id ?? -1);
+                    BitConverter.TryWriteBytes(buffer.Slice(1 + 4 + node.N * ItemLength + i * 8, 8), childNode?.Id ?? -1);
                 }
             }
 
@@ -132,19 +132,19 @@ namespace BTree
                 _ => ThrowCorruptedNode<bool>(diskNode.Id)
             };
             node.N = BitConverter.ToInt32(buffer.Slice(1, 4));
-            if (node.N < 0 || node.N > MaxKeysCount)
+            if (node.N < 0 || node.N > MaxItemsCount)
                 ThrowCorruptedNode<bool>(diskNode.Id);
 
-            buffer = stackalloc byte[node.N * KeyLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
+            buffer = stackalloc byte[node.N * ItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
             if (!ReadAt(GetOffset(diskNode.Id) + 5, buffer))
                 ThrowCorruptedNode(diskNode.Id);
             for (var i = 0; i < node.N; i++)
-                node.Keys[i] = DeserializeKey(buffer.Slice(i * KeyLength, KeyLength));
+                node.Items[i] = DeserializeItem(buffer.Slice(i * ItemLength, ItemLength));
             if (!node.IsLeaf)
             {
                 for (var i = 0; i < node.N + 1; i++)
                 {
-                    var id = BitConverter.ToInt64(buffer.Slice(node.N * KeyLength + i * 8, 8));
+                    var id = BitConverter.ToInt64(buffer.Slice(node.N * ItemLength + i * 8, 8));
                     if (id >= 0)
                     {
                         if (id >= 0)
@@ -205,7 +205,7 @@ namespace BTree
             return new DiskBTreeNode
             {
                 Id = -1,
-                Keys = new T[MaxKeysCount],
+                Items = new T[MaxItemsCount],
                 Children = new BTreeNode[MaxChildrenCount],
                 IsLeaf = true
             };

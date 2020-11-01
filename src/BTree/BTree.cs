@@ -3,41 +3,41 @@ using System.Collections.Generic;
 
 namespace BTree
 {
-    public class BTreeBase<T>
+    public class BTree<T>
     {
         private readonly int _t;
         private readonly IComparer<T> _comparer;
 
         protected BTreeNode Root { get; set; }
 
-        public BTreeBase(int t, IComparer<T> comparer)
+        public BTree(int t, IComparer<T> comparer)
         {
             _t = t;
             _comparer = comparer;
         }
 
-        public virtual void Insert(T key)
+        public virtual void Add(T item)
         {
             InitIfNeeded();
-            InsertInternal(key);
+            AddInternal(item);
         }
 
-        public virtual bool Remove(T key)
+        public virtual bool Remove(T item)
         {
             InitIfNeeded();
-            return RemoveInternal(key);
+            return RemoveInternal(item);
         }
 
-        public virtual bool Update(T key, Func<T, T> updater)
+        public virtual bool Update(T item, Func<T, T> updater)
         {
             InitIfNeeded();
-            return UpdateInternal(key, updater);
+            return UpdateInternal(item, updater);
         }
 
-        public virtual bool Contains(T key)
+        public virtual bool Contains(T item)
         {
             InitIfNeeded();
-            return ContainsInternal(key);
+            return ContainsInternal(item);
         }
 
         protected virtual void Read(BTreeNode node)
@@ -60,7 +60,7 @@ namespace BTree
         {
         }
 
-        protected int MaxKeysCount => 2 * _t - 1;
+        protected int MaxItemsCount => 2 * _t - 1;
 
         protected int MaxChildrenCount => 2 * _t;
 
@@ -68,13 +68,13 @@ namespace BTree
         {
             return new BTreeNode
             {
-                Keys = new T[MaxKeysCount],
+                Items = new T[MaxItemsCount],
                 Children = new BTreeNode[MaxChildrenCount],
                 IsLeaf = true
             };
         }
 
-        private void InsertInternal(T key)
+        private void AddInternal(T item)
         {
             var r = Root;
             if (r.N == 2 * _t - 1)
@@ -84,16 +84,16 @@ namespace BTree
                 s.IsLeaf = false;
                 s.Children[0] = r;
                 SplitChild(s, 0);
-                InsertNonFull(s, key);
+                AddNonFull(s, item);
                 WriteRoot(Root);
             }
             else
-                InsertNonFull(r, key);
+                AddNonFull(r, item);
         }
 
-        private bool RemoveInternal(T key)
+        private bool RemoveInternal(T item)
         {
-            if (!Remove(Root, key))
+            if (!Remove(Root, item))
                 return false;
             if (Root.N == 0 && !Root.IsLeaf)
             {
@@ -105,29 +105,29 @@ namespace BTree
             return true;
         }
 
-        private bool UpdateInternal(T key, Func<T, T> updater)
+        private bool UpdateInternal(T item, Func<T, T> updater)
         {
-            var (node, i) = DeepSearch(Root, key);
+            var (node, i) = DeepSearch(Root, item);
             if (i < 0)
                 return false;
-            var oldKey = node.Keys[i];
-            var newKey = updater(oldKey);
-            if (_comparer.Compare(oldKey, newKey) == 0)
+            var oldItem = node.Items[i];
+            var newItem = updater(oldItem);
+            if (_comparer.Compare(oldItem, newItem) == 0)
             {
-                node.Keys[i] = newKey;
+                node.Items[i] = newItem;
                 Write(node);
             }
             else
             {
-                InsertInternal(newKey);
-                RemoveInternal(oldKey);
+                AddInternal(newItem);
+                RemoveInternal(oldItem);
             }
             return true;
         }
 
-        private bool ContainsInternal(T key)
+        private bool ContainsInternal(T item)
         {
-            var (_, i) = DeepSearch(Root, key);
+            var (_, i) = DeepSearch(Root, item);
             return i >= 0;
         }
 
@@ -140,19 +140,19 @@ namespace BTree
             Read(Root);
         }
 
-        private (BTreeNode, int) DeepSearch(BTreeNode node, T key)
+        private (BTreeNode, int) DeepSearch(BTreeNode node, T item)
         {
-            var i = BinarySearch(node, key);
+            var i = BinarySearch(node, item);
             if (i >= 0)
                 return (node, i);
             if (node.IsLeaf)
                 return (null, -1);
             i = ~i;
             Read(node.Children[i]);
-            return DeepSearch(node.Children[i], key);
+            return DeepSearch(node.Children[i], item);
         }
 
-        private int BinarySearch(BTreeNode node, T key)
+        private int BinarySearch(BTreeNode node, T item)
         {
             var l = 0;
             var r = node.N - 1;
@@ -160,19 +160,19 @@ namespace BTree
             while (r >= l)
             {
                 i = (l + r) / 2;
-                var cmp = _comparer.Compare(key, node.Keys[i]);
+                var cmp = _comparer.Compare(item, node.Items[i]);
                 if (cmp < 0)
                     r = i - 1;
                 else if (cmp > 0)
                     l = i + 1;
                 else
                 {
-                    while (i < node.N - 1 && _comparer.Compare(key, node.Keys[i + 1]) == 0)
+                    while (i < node.N - 1 && _comparer.Compare(item, node.Items[i + 1]) == 0)
                         i++;
                     return i;
                 }
             }
-            while (i < node.N && _comparer.Compare(key, node.Keys[i]) > 0)
+            while (i < node.N && _comparer.Compare(item, node.Items[i]) > 0)
                 i++;
             return ~i;
         }
@@ -184,7 +184,7 @@ namespace BTree
             rightChild.IsLeaf = leftChild.IsLeaf;
             rightChild.N = _t - 1;
             for (var j = 0; j < _t - 1; j++)
-                rightChild.Keys[j] = leftChild.Keys[j + _t];
+                rightChild.Items[j] = leftChild.Items[j + _t];
             if (!leftChild.IsLeaf)
             {
                 for (var j = 0; j < _t; j++)
@@ -195,47 +195,47 @@ namespace BTree
                 node.Children[j] = node.Children[j - 1];
             node.Children[i + 1] = rightChild;
             for (var j = node.N; j > i; j--)
-                node.Keys[j] = node.Keys[j - 1];
-            node.Keys[i] = leftChild.Keys[_t - 1];
+                node.Items[j] = node.Items[j - 1];
+            node.Items[i] = leftChild.Items[_t - 1];
             node.N++;
             Write(leftChild);
             Write(rightChild);
             Write(node);
         }
 
-        private void InsertNonFull(BTreeNode node, T key)
+        private void AddNonFull(BTreeNode node, T item)
         {
             var i = node.N;
             if (node.IsLeaf)
             {
-                while (i > 0 && _comparer.Compare(key, node.Keys[i - 1]) < 0)
+                while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) < 0)
                 {
-                    node.Keys[i] = node.Keys[i - 1];
+                    node.Items[i] = node.Items[i - 1];
                     i--;
                 }
-                node.Keys[i] = key;
+                node.Items[i] = item;
                 node.N++;
                 Write(node);
             }
             else
             {
-                while (i > 0 && _comparer.Compare(key, node.Keys[i - 1]) < 0)
+                while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) < 0)
                     i--;
                 i++;
                 Read(node.Children[i - 1]);
                 if (node.Children[i - 1].N == 2 * _t - 1)
                 {
                     SplitChild(node, i - 1);
-                    if (_comparer.Compare(key, node.Keys[i - 1]) > 0)
+                    if (_comparer.Compare(item, node.Items[i - 1]) > 0)
                         i++;
                 }
-                InsertNonFull(node.Children[i - 1], key);
+                AddNonFull(node.Children[i - 1], item);
             }
         }
 
-        private bool Remove(BTreeNode node, T key)
+        private bool Remove(BTreeNode node, T item)
         {
-            var i = BinarySearch(node, key);
+            var i = BinarySearch(node, item);
             if (i >= 0)
             {
                 if (node.IsLeaf)
@@ -255,14 +255,14 @@ namespace BTree
                     Fill(node, i);
                 if (isLast && i > node.N)
                     i--;
-                return Remove(node.Children[i], key);
+                return Remove(node.Children[i], item);
             }
         }
 
         private void RemoveFromLeaf(BTreeNode node, int i)
         {
             for (var j = i + 1; j < node.N; j++)
-                node.Keys[j - 1] = node.Keys[j];
+                node.Items[j - 1] = node.Items[j];
             node.N--;
             Write(node);
         }
@@ -273,7 +273,7 @@ namespace BTree
             if (node.Children[i].N >= _t)
             {
                 var pred = GetPred(node, i);
-                node.Keys[i] = pred;
+                node.Items[i] = pred;
                 Remove(node.Children[i], pred);
                 Write(node);
                 return;
@@ -282,14 +282,14 @@ namespace BTree
             if (node.Children[i + 1].N >= _t)
             {
                 var succ = GetSucc(node, i);
-                node.Keys[i] = succ;
+                node.Items[i] = succ;
                 Remove(node.Children[i + 1], succ);
                 Write(node);
                 return;
             }
-            var key = node.Keys[i];
+            var item = node.Items[i];
             Merge(node, i);
-            Remove(node.Children[i], key);
+            Remove(node.Children[i], item);
             Write(node);
         }
 
@@ -301,7 +301,7 @@ namespace BTree
                 cur = cur.Children[cur.N];
                 Read(cur);
             }
-            return cur.Keys[cur.N - 1];
+            return cur.Items[cur.N - 1];
         }
 
         private T GetSucc(BTreeNode node, int i)
@@ -312,7 +312,7 @@ namespace BTree
                 cur = cur.Children[0];
                 Read(cur);
             }
-            return cur.Keys[0];
+            return cur.Items[0];
         }
 
         private void Merge(BTreeNode node, int i)
@@ -321,16 +321,16 @@ namespace BTree
             var sibling = node.Children[i + 1];
             Read(child);
             Read(sibling);
-            child.Keys[_t - 1] = node.Keys[i];
+            child.Items[_t - 1] = node.Items[i];
             for (var j = 0; j < sibling.N; j++)
-                child.Keys[j + _t] = sibling.Keys[j];
+                child.Items[j + _t] = sibling.Items[j];
             if (!child.IsLeaf)
             {
                 for (var j = 0; j <= sibling.N; j++)
                     child.Children[j + _t] = sibling.Children[j];
             }
             for (var j = i + 1; j < node.N; j++)
-                node.Keys[j - 1] = node.Keys[j];
+                node.Items[j - 1] = node.Items[j];
             for (var j = i + 2; j <= node.N; j++)
                 node.Children[j - 1] = node.Children[j];
             child.N += sibling.N + 1;
@@ -375,16 +375,16 @@ namespace BTree
             Read(child);
             Read(sibling);
             for (var j = child.N - 1; j >= 0; j--)
-                child.Keys[j + 1] = child.Keys[j];
+                child.Items[j + 1] = child.Items[j];
             if (!child.IsLeaf)
             {
                 for (var j = child.N; j >= 0; j--)
                     child.Children[j + 1] = child.Children[j];
             }
-            child.Keys[0] = node.Keys[i - 1];
+            child.Items[0] = node.Items[i - 1];
             if (!child.IsLeaf)
                 child.Children[0] = sibling.Children[sibling.N];
-            node.Keys[i - 1] = sibling.Keys[sibling.N - 1];
+            node.Items[i - 1] = sibling.Items[sibling.N - 1];
             child.N++;
             sibling.N--;
             Write(child);
@@ -397,12 +397,12 @@ namespace BTree
             var sibling = node.Children[i + 1];
             Read(child);
             Read(sibling);
-            child.Keys[child.N] = node.Keys[i];
+            child.Items[child.N] = node.Items[i];
             if (!child.IsLeaf)
                 child.Children[child.N + 1] = sibling.Children[0];
-            node.Keys[i] = sibling.Keys[0];
+            node.Items[i] = sibling.Items[0];
             for (var j = 1; j < sibling.N; j++)
-                sibling.Keys[j - 1] = sibling.Keys[j];
+                sibling.Items[j - 1] = sibling.Items[j];
             if (!sibling.IsLeaf)
             {
                 for (var j = 1; j <= sibling.N; j++)
@@ -418,7 +418,7 @@ namespace BTree
         {
             public bool IsLeaf { get; set; }
             public int N { get; set; }
-            public T[] Keys { get; set; }
+            public T[] Items { get; set; }
             public BTreeNode[] Children { get; set; }
         }
     }
