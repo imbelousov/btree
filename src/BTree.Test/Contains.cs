@@ -90,6 +90,17 @@ namespace BTree.Test
 	        Assert.IsTrue(_tree.Contains(value));
         }
 
+        [Test]
+        public void AddManyDuplicatesToNonEmptyTreeAndCheck()
+        {
+	        const int value = 5;
+	        for(var i = 0; i < 10000; i++)
+		        _tree.Add(i);
+	        for(var i = 0; i < 10000; i++)
+		        _tree.Add(value);
+	        Assert.IsTrue(_tree.Contains(value));
+        }
+
         public Contains(Type type, int t)
         {
             _type = type;
