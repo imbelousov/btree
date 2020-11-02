@@ -78,6 +78,18 @@ namespace BTree.Test
                 Assert.IsTrue(_tree.Contains(value));
         }
 
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(10)]
+        [TestCase(10000)]
+        public void AddDuplicatesAndCheck(int count)
+        {
+	        const int value = 5;
+	        for(var i = 0; i < count; i++)
+		        _tree.Add(value);
+	        Assert.IsTrue(_tree.Contains(value));
+        }
+
         public Contains(Type type, int t)
         {
             _type = type;
