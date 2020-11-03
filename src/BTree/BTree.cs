@@ -149,11 +149,12 @@ namespace BTree
 
         private void InitIfNeeded()
         {
-            if (Root != null)
-                return;
-            Root = AllocateNode();
-            ReadRoot(Root);
-            Read(Root);
+	        if(Root == null)
+	        {
+		        Root = AllocateNode();
+		        ReadRoot(Root);
+	        }
+	        Read(Root);
         }
 
         private IEnumerable<T> Enumerate(BTreeNode node)

@@ -70,6 +70,23 @@ namespace BTree.Test
 	        CollectionAssert.AreEqual(values.OrderBy(x => x), Tree.Enumerate());
         }
 
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(100)]
+        [TestCase(1000)]
+        [TestCase(10000)]
+        [TestCase(20000)]
+        public void EnumerateTwice(int valuesCount)
+        {
+	        var values = Enumerable.Range(-10000, 20000).Take(valuesCount).ToList();
+	        foreach(var value in values)
+		        Tree.Add(value);
+	        CollectionAssert.AreEqual(values, Tree.Enumerate());
+	        CollectionAssert.AreEqual(values, Tree.Enumerate());
+        }
+
         public Enumerate(Type type, int t)
             : base(type, t)
         {
