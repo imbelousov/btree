@@ -86,6 +86,10 @@ namespace BTree
             };
         }
 
+        protected virtual void FreeNode(BTreeNode node)
+        {
+        }
+
         private void AddInternal(T item)
         {
             var r = Root;
@@ -154,25 +158,26 @@ namespace BTree
 
         private IEnumerable<T> Enumerate(BTreeNode node)
         {
-            int i;
-            for (i = 0; i < node.N; i++)
-            {
-                if (!node.IsLeaf)
-                {
-                    var child = node.Children[i];
-                    Read(child);
-                    foreach (var item in Enumerate(child))
-                        yield return item;
-                }
-                yield return node.Items[i];
-            }
-            if (!node.IsLeaf)
-            {
-                var child = node.Children[i];
-                Read(child);
-                foreach (var item in Enumerate(child))
-                    yield return item;
-            }
+	        int i;
+	        for(i = 0; i < node.N; i++)
+	        {
+		        if(!node.IsLeaf)
+		        {
+			        var child = node.Children[i];
+			        Read(child);
+			        foreach(var item in Enumerate(child))
+				        yield return item;
+		        }
+		        yield return node.Items[i];
+	        }
+	        if(!node.IsLeaf)
+	        {
+		        var child = node.Children[i];
+		        Read(child);
+		        foreach(var item in Enumerate(child))
+			        yield return item;
+	        }
+	        FreeNode(node);
         }
 
         private (BTreeNode, int) DeepSearch(BTreeNode node, T item)

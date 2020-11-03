@@ -62,7 +62,7 @@ namespace BTree
             }
             finally
             {
-                Free();
+                FreeAllNodes();
             }
         }
 
@@ -74,7 +74,7 @@ namespace BTree
             }
             finally
             {
-                Free();
+                FreeAllNodes();
             }
         }
 
@@ -86,7 +86,7 @@ namespace BTree
             }
             finally
             {
-                Free();
+                FreeAllNodes();
             }
         }
 
@@ -98,7 +98,7 @@ namespace BTree
             }
             finally
             {
-                Free();
+                FreeAllNodes();
             }
         }
 
@@ -232,7 +232,17 @@ namespace BTree
             };
         }
 
-        private void Free()
+        protected override void FreeNode(BTreeNode node)
+        {
+	        var diskNode = (DiskBTreeNode)node;
+	        diskNode.Synchronized = false;
+	        diskNode.N = 0;
+	        diskNode.IsLeaf = false;
+	        Array.Fill(diskNode.Items, default);
+	        Array.Fill(diskNode.Children, null);
+        }
+
+        private void FreeAllNodes()
         {
             Root = null;
         }
