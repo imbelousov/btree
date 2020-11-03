@@ -1,20 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using NUnit.Framework;
 
 namespace BTree.Test
 {
-    [TestFixture(typeof(BTree<>), 2)]
-    [TestFixture(typeof(BTree<>), 3)]
-    [TestFixture(typeof(BTree<>), 10)]
-    [TestFixture(typeof(BTree<>), 100)]
-    [TestFixture(typeof(DiskBTree<>), 2)]
-    [TestFixture(typeof(DiskBTree<>), 3)]
-    [TestFixture(typeof(DiskBTree<>), 10)]
-    [TestFixture(typeof(DiskBTree<>), 100)]
-    public class Contains
+    public class Contains : TestBase
     {
         [TestCase(0)]
         [TestCase(1)]
@@ -24,14 +14,14 @@ namespace BTree.Test
         [TestCase(int.MinValue)]
         public void AddValueAndCheckIfContains(int value)
         {
-            _tree.Add(value);
-            Assert.IsTrue(_tree.Contains(value));
+            Tree.Add(value);
+            Assert.IsTrue(Tree.Contains(value));
         }
 
         [Test]
         public void CheckIfEmptyTreeContains()
         {
-            Assert.IsFalse(_tree.Contains(5));
+            Assert.IsFalse(Tree.Contains(5));
         }
 
         [TestCase(0, 1)]
@@ -43,8 +33,8 @@ namespace BTree.Test
         [TestCase(int.MaxValue, int.MinValue)]
         public void CheckIfTreeContainsNotExistingValue(int addedValue, int value)
         {
-            _tree.Add(addedValue);
-            Assert.IsFalse(_tree.Contains(value));
+            Tree.Add(addedValue);
+            Assert.IsFalse(Tree.Contains(value));
         }
 
         [Test]
@@ -52,9 +42,9 @@ namespace BTree.Test
         {
             var values = Enumerable.Range(-10000, 20000).ToList();
             foreach (var value in values)
-                _tree.Add(value);
+                Tree.Add(value);
             foreach (var value in values)
-                Assert.IsTrue(_tree.Contains(value));
+                Assert.IsTrue(Tree.Contains(value));
         }
 
         [Test]
@@ -62,9 +52,9 @@ namespace BTree.Test
         {
             var values = Enumerable.Range(-10000, 20000).ToList();
             foreach (var value in values)
-                _tree.Add(value * 2);
+                Tree.Add(value * 2);
             foreach (var value in values)
-                Assert.IsFalse(_tree.Contains(value * 2 + 1));
+                Assert.IsFalse(Tree.Contains(value * 2 + 1));
         }
 
         [Test]
@@ -73,9 +63,9 @@ namespace BTree.Test
             var random = new Random(896823);
             var values = Enumerable.Range(-10000, 20000).ToList();
             foreach (var value in values.OrderBy(x => random.Next()))
-                _tree.Add(value);
+                Tree.Add(value);
             foreach (var value in values.OrderBy(x => random.Next()))
-                Assert.IsTrue(_tree.Contains(value));
+                Assert.IsTrue(Tree.Contains(value));
         }
 
         [TestCase(2)]
@@ -84,52 +74,26 @@ namespace BTree.Test
         [TestCase(10000)]
         public void AddDuplicatesAndCheck(int count)
         {
-	        const int value = 5;
-	        for(var i = 0; i < count; i++)
-		        _tree.Add(value);
-	        Assert.IsTrue(_tree.Contains(value));
+            const int value = 5;
+            for (var i = 0; i < count; i++)
+                Tree.Add(value);
+            Assert.IsTrue(Tree.Contains(value));
         }
 
         [Test]
         public void AddManyDuplicatesToNonEmptyTreeAndCheck()
         {
-	        const int value = 5;
-	        for(var i = 0; i < 10000; i++)
-		        _tree.Add(i);
-	        for(var i = 0; i < 10000; i++)
-		        _tree.Add(value);
-	        Assert.IsTrue(_tree.Contains(value));
+            const int value = 5;
+            for (var i = 0; i < 10000; i++)
+                Tree.Add(i);
+            for (var i = 0; i < 10000; i++)
+                Tree.Add(value);
+            Assert.IsTrue(Tree.Contains(value));
         }
 
         public Contains(Type type, int t)
+            : base(type, t)
         {
-            _type = type;
-            _t = t;
         }
-
-        [SetUp]
-        public void SetUp()
-        {
-            _tree = CreateTree(_type, _t);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            (_tree as IDisposable)?.Dispose();
-        }
-
-        private BTree<int> CreateTree(Type type, int t)
-        {
-            if (type == typeof(BTree<>))
-                return new BTree<int>(t, Comparer<int>.Default);
-            if (type == typeof(DiskBTree<>))
-                return new Int32DiskBTree(new MemoryStream(), t, Comparer<int>.Default);
-            throw new NotSupportedException();
-        }
-
-        private readonly Type _type;
-        private readonly int _t;
-        private BTree<int> _tree;
     }
 }

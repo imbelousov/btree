@@ -50,6 +50,12 @@ namespace BTree
             return ContainsInternal(item);
         }
 
+        public virtual IEnumerable<T> Enumerate()
+        {
+            InitIfNeeded();
+            return Enumerate(Root);
+        }
+
         protected virtual void Read(BTreeNode node)
         {
         }
@@ -144,6 +150,29 @@ namespace BTree
             Root = AllocateNode();
             ReadRoot(Root);
             Read(Root);
+        }
+
+        private IEnumerable<T> Enumerate(BTreeNode node)
+        {
+            int i;
+            for (i = 0; i < node.N; i++)
+            {
+                if (!node.IsLeaf)
+                {
+                    var child = node.Children[i];
+                    Read(child);
+                    foreach (var item in Enumerate(child))
+                        yield return item;
+                }
+                yield return node.Items[i];
+            }
+            if (!node.IsLeaf)
+            {
+                var child = node.Children[i];
+                Read(child);
+                foreach (var item in Enumerate(child))
+                    yield return item;
+            }
         }
 
         private (BTreeNode, int) DeepSearch(BTreeNode node, T item)
