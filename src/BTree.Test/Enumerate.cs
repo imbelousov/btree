@@ -9,7 +9,7 @@ namespace BTree.Test
         [Test]
         public void EnumerateEmptyTree()
         {
-            Assert.IsEmpty(Tree.Enumerate());
+            Assert.IsEmpty(Tree.Enumerate(false));
         }
 
         [Test]
@@ -17,7 +17,7 @@ namespace BTree.Test
         {
 	        const int value = 1;
 	        Tree.Add(value);
-	        CollectionAssert.AreEqual(new[] {value}, Tree.Enumerate());
+	        CollectionAssert.AreEqual(new[] {value}, Tree.Enumerate(false));
         }
 
         [TestCase(2)]
@@ -34,7 +34,24 @@ namespace BTree.Test
 	        var values = Enumerable.Range(-10000, 20000).OrderBy(x => rand.Next()).Take(valuesCount).ToList();
 	        foreach(var value in values)
 		        Tree.Add(value);
-	        CollectionAssert.AreEqual(values.OrderBy(x => x), Tree.Enumerate());
+	        CollectionAssert.AreEqual(values.OrderBy(x => x), Tree.Enumerate(false));
+        }
+
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(100)]
+        [TestCase(1000)]
+        [TestCase(10000)]
+        [TestCase(20000)]
+        public void EnumerateTreeContainingMultipleValues_Reverse(int valuesCount)
+        {
+            var rand = new Random(1245645);
+            var values = Enumerable.Range(-10000, 20000).OrderBy(x => rand.Next()).Take(valuesCount).ToList();
+            foreach (var value in values)
+                Tree.Add(value);
+            CollectionAssert.AreEqual(values.OrderByDescending(x => x), Tree.Enumerate(true));
         }
 
         [TestCase(2)]
@@ -50,7 +67,7 @@ namespace BTree.Test
 	        const int value = 1;
 	        for(var i = 0; i < duplicatesCount; i++)
 		        Tree.Add(value);
-	        CollectionAssert.AreEqual(Enumerable.Repeat(value, duplicatesCount), Tree.Enumerate());
+	        CollectionAssert.AreEqual(Enumerable.Repeat(value, duplicatesCount), Tree.Enumerate(false));
         }
 
         [TestCase(2)]
@@ -67,7 +84,7 @@ namespace BTree.Test
 	        var values = Enumerable.Range(-10000, 20000).Concat(Enumerable.Repeat(duplicatedValue, duplicatesCount)).OrderBy(x => rand.Next()).ToList();
 	        foreach(var value in values)
 		        Tree.Add(value);
-	        CollectionAssert.AreEqual(values.OrderBy(x => x), Tree.Enumerate());
+	        CollectionAssert.AreEqual(values.OrderBy(x => x), Tree.Enumerate(false));
         }
 
         [TestCase(2)]
@@ -83,8 +100,8 @@ namespace BTree.Test
 	        var values = Enumerable.Range(-10000, 20000).Take(valuesCount).ToList();
 	        foreach(var value in values)
 		        Tree.Add(value);
-	        CollectionAssert.AreEqual(values, Tree.Enumerate());
-	        CollectionAssert.AreEqual(values, Tree.Enumerate());
+	        CollectionAssert.AreEqual(values, Tree.Enumerate(false));
+	        CollectionAssert.AreEqual(values, Tree.Enumerate(false));
         }
 
         public Enumerate(Type type, int t)

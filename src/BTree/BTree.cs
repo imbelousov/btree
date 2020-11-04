@@ -50,9 +50,11 @@ namespace BTree
             return ContainsInternal(item);
         }
 
-        public virtual IEnumerable<T> Enumerate()
+        public virtual IEnumerable<T> Enumerate(bool reverse)
         {
             InitIfNeeded();
+            if (reverse)
+                return EnumerateReverse(Root);
             return Enumerate(Root);
         }
 
@@ -159,8 +161,7 @@ namespace BTree
 
         private IEnumerable<T> Enumerate(BTreeNode node)
         {
-	        int i;
-	        for(i = 0; i < node.N; i++)
+	        for(var i = 0; i < node.N; i++)
 	        {
 		        if(!node.IsLeaf)
 		        {
@@ -173,12 +174,35 @@ namespace BTree
 	        }
 	        if(!node.IsLeaf)
 	        {
-		        var child = node.Children[i];
+		        var child = node.Children[node.N];
 		        Read(child);
 		        foreach(var item in Enumerate(child))
 			        yield return item;
 	        }
 	        FreeNode(node);
+        }
+
+        private IEnumerable<T> EnumerateReverse(BTreeNode node)
+        {
+            if (!node.IsLeaf)
+            {
+                var child = node.Children[node.N];
+                Read(child);
+                foreach (var item in EnumerateReverse(child))
+                    yield return item;
+            }
+            for (var i = node.N - 1; i >= 0; i--)
+            {
+                yield return node.Items[i];
+                if (!node.IsLeaf)
+                {
+                    var child = node.Children[i];
+                    Read(child);
+                    foreach (var item in EnumerateReverse(child))
+                        yield return item;
+                }
+            }
+            FreeNode(node);
         }
 
         private (BTreeNode, int) DeepSearch(BTreeNode node, T item)
