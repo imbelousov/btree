@@ -5,12 +5,29 @@ namespace BTree
 {
     public class BTree<T>
     {
+        public const int DefaultT = 20;
+
         private readonly int _t;
         private readonly IComparer<T> _comparer;
 
         protected BTreeNode Root { get; set; }
         protected int MaxItemsCount { get; }
         protected int MaxChildrenCount { get; }
+
+        public BTree()
+            : this(DefaultT, Comparer<T>.Default)
+        {
+        }
+
+        public BTree(int t)
+            : this(t, Comparer<T>.Default)
+        {
+        }
+
+        public BTree(IComparer<T> comparer)
+            : this(DefaultT, comparer)
+        {
+        }
 
         public BTree(int t, IComparer<T> comparer)
         {
@@ -151,35 +168,35 @@ namespace BTree
 
         private void InitIfNeeded()
         {
-	        if(Root == null)
-	        {
-		        Root = AllocateNode();
-		        ReadRoot(Root);
-	        }
-	        Read(Root);
+            if (Root == null)
+            {
+                Root = AllocateNode();
+                ReadRoot(Root);
+            }
+            Read(Root);
         }
 
         private IEnumerable<T> Enumerate(BTreeNode node)
         {
-	        for(var i = 0; i < node.N; i++)
-	        {
-		        if(!node.IsLeaf)
-		        {
-			        var child = node.Children[i];
-			        Read(child);
-			        foreach(var item in Enumerate(child))
-				        yield return item;
-		        }
-		        yield return node.Items[i];
-	        }
-	        if(!node.IsLeaf)
-	        {
-		        var child = node.Children[node.N];
-		        Read(child);
-		        foreach(var item in Enumerate(child))
-			        yield return item;
-	        }
-	        FreeNode(node);
+            for (var i = 0; i < node.N; i++)
+            {
+                if (!node.IsLeaf)
+                {
+                    var child = node.Children[i];
+                    Read(child);
+                    foreach (var item in Enumerate(child))
+                        yield return item;
+                }
+                yield return node.Items[i];
+            }
+            if (!node.IsLeaf)
+            {
+                var child = node.Children[node.N];
+                Read(child);
+                foreach (var item in Enumerate(child))
+                    yield return item;
+            }
+            FreeNode(node);
         }
 
         private IEnumerable<T> EnumerateReverse(BTreeNode node)

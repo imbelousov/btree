@@ -4,22 +4,93 @@ using System.IO;
 
 namespace BTree
 {
-    public abstract class DiskBTree<T> : BTree<T>, IDisposable
+    public class DiskBTree<T> : BTree<T>, IDisposable
     {
         private const int HeaderSize = 24;
         private const int ExpansionSize = 1024;
         private readonly Stream _stream;
         private readonly bool _leaveOpen;
+        private readonly IItemSerializer<T> _serializer;
 
-        protected abstract int ItemLength { get; }
+        protected int PageSize => 1 + 4 + _serializer.MaxSerializedItemLength * MaxItemsCount + 8 * MaxChildrenCount;
 
-        protected int NodeSize => 1 + 4 + ItemLength * MaxItemsCount + 8 * MaxChildrenCount;
+        public DiskBTree(Stream stream)
+            : this(stream, false, DefaultT, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
 
-        protected DiskBTree(Stream stream, bool leaveOpen, int t, IComparer<T> comparer)
+        public DiskBTree(string fileName)
+            : this(fileName, DefaultT, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, bool leaveOpen)
+            : this(stream, leaveOpen, DefaultT, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, int t)
+            : this(stream, false, t, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, bool leaveOpen, int t)
+            : this(stream, leaveOpen, t, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(string fileName, int t)
+            : this(fileName, t, Comparer<T>.Default, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, int t, IComparer<T> comparer)
+            : this(stream, false, t, comparer, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, bool leaveOpen, int t, IComparer<T> comparer)
+            : this(stream, leaveOpen, t, comparer, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(string fileName, int t, IComparer<T> comparer)
+            : this(fileName, t, comparer, ItemSerializer<T>.Default)
+        {
+        }
+
+        public DiskBTree(Stream stream, int t, IItemSerializer<T> serializer)
+            : this(stream, false, t, Comparer<T>.Default, serializer)
+        {
+        }
+
+        public DiskBTree(Stream stream, bool leaveOpen, int t, IItemSerializer<T> serializer)
+            : this(stream, leaveOpen, t, Comparer<T>.Default, serializer)
+        {
+        }
+
+        public DiskBTree(string fileName, int t, IItemSerializer<T> serializer)
+            : this(fileName, t, Comparer<T>.Default, serializer)
+        {
+        }
+
+        public DiskBTree(Stream stream, int t, IComparer<T> comparer, IItemSerializer<T> serializer)
+            : this(stream, false, t, comparer, serializer)
+        {
+        }
+
+        public DiskBTree(string fileName, int t, IComparer<T> comparer, IItemSerializer<T> serializer)
+            : this(File.Open(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite), t, comparer, serializer)
+        {
+        }
+
+        public DiskBTree(Stream stream, bool leaveOpen, int t, IComparer<T> comparer, IItemSerializer<T> serializer)
             : base(t, comparer)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
+            if (serializer == null)
+                throw new ArgumentNullException(nameof(serializer));
             if (!stream.CanRead)
                 throw new ArgumentException("Expected a readable stream", nameof(stream));
             if (!stream.CanWrite)
@@ -28,18 +99,9 @@ namespace BTree
                 throw new ArgumentException("Expected a seekable stream", nameof(stream));
             _stream = stream;
             _leaveOpen = leaveOpen;
+            _serializer = serializer;
             if (_stream.Length < HeaderSize)
                 Init();
-        }
-
-        protected DiskBTree(Stream stream, int t, IComparer<T> comparer)
-            : this(stream, false, t, comparer)
-        {
-        }
-
-        protected DiskBTree(string fileName, int t, IComparer<T> comparer)
-            : this(File.Open(fileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite), t, comparer)
-        {
         }
 
         ~DiskBTree()
@@ -102,27 +164,23 @@ namespace BTree
             }
         }
 
-        protected abstract void SerializeItem(T item, Span<byte> buffer);
-
-        protected abstract T DeserializeItem(ReadOnlySpan<byte> buffer);
-
         protected override void Write(BTreeNode node)
         {
             var diskNode = (DiskBTreeNode) node;
-            var buffer = (Span<byte>) stackalloc byte[1 + 4 + node.N * ItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
+            var buffer = (Span<byte>) stackalloc byte[1 + 4 + node.N * _serializer.MaxSerializedItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
             if (diskNode.Id < 0)
                 diskNode.Id = FindNewNodeId();
 
             buffer[0] = (byte) (node.IsLeaf ? NodeType.Leaf : NodeType.NonLeaf);
             BitConverter.TryWriteBytes(buffer.Slice(1, 4), node.N);
             for (var i = 0; i < node.N; i++)
-                SerializeItem(node.Items[i], buffer.Slice(1 + 4 + i * ItemLength, ItemLength));
+                _serializer.SerializeItem(node.Items[i], buffer.Slice(1 + 4 + i * _serializer.MaxSerializedItemLength, _serializer.MaxSerializedItemLength));
             if (!node.IsLeaf)
             {
                 for (var i = 0; i < node.N + 1; i++)
                 {
                     var childNode = (DiskBTreeNode) node.Children[i];
-                    BitConverter.TryWriteBytes(buffer.Slice(1 + 4 + node.N * ItemLength + i * 8, 8), childNode?.Id ?? -1);
+                    BitConverter.TryWriteBytes(buffer.Slice(1 + 4 + node.N * _serializer.MaxSerializedItemLength + i * 8, 8), childNode?.Id ?? -1);
                 }
             }
 
@@ -156,16 +214,16 @@ namespace BTree
             if (node.N < 0 || node.N > MaxItemsCount)
                 ThrowCorruptedNode<bool>(diskNode.Id);
 
-            buffer = stackalloc byte[node.N * ItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
+            buffer = stackalloc byte[node.N * _serializer.MaxSerializedItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
             if (!ReadAt(GetOffset(diskNode.Id) + 5, buffer))
                 ThrowCorruptedNode(diskNode.Id);
             for (var i = 0; i < node.N; i++)
-                node.Items[i] = DeserializeItem(buffer.Slice(i * ItemLength, ItemLength));
+                node.Items[i] = _serializer.DeserializeItem(buffer.Slice(i * _serializer.MaxSerializedItemLength, _serializer.MaxSerializedItemLength));
             if (!node.IsLeaf)
             {
                 for (var i = 0; i < node.N + 1; i++)
                 {
-                    var id = BitConverter.ToInt64(buffer.Slice(node.N * ItemLength + i * 8, 8));
+                    var id = BitConverter.ToInt64(buffer.Slice(node.N * _serializer.MaxSerializedItemLength + i * 8, 8));
                     if (id >= 0)
                     {
                         if (id >= 0)
@@ -234,12 +292,12 @@ namespace BTree
 
         protected override void FreeNode(BTreeNode node)
         {
-	        var diskNode = (DiskBTreeNode)node;
-	        diskNode.Synchronized = false;
-	        diskNode.N = 0;
-	        diskNode.IsLeaf = false;
-	        Array.Fill(diskNode.Items, default);
-	        Array.Fill(diskNode.Children, null);
+            var diskNode = (DiskBTreeNode) node;
+            diskNode.Synchronized = false;
+            diskNode.N = 0;
+            diskNode.IsLeaf = false;
+            Array.Fill(diskNode.Items, default);
+            Array.Fill(diskNode.Children, null);
         }
 
         private void FreeAllNodes()
@@ -282,12 +340,12 @@ namespace BTree
 
         private void ExpandFile(long lastId)
         {
-            _stream.Seek(GetOffset(lastId) + NodeSize - 1, SeekOrigin.Begin);
+            _stream.Seek(GetOffset(lastId) + PageSize - 1, SeekOrigin.Begin);
             _stream.WriteByte(0);
             _stream.Flush();
         }
 
-        private long GetOffset(long id) => NodeSize * id + HeaderSize;
+        private long GetOffset(long id) => PageSize * id + HeaderSize;
 
         private bool ReadAt(long position, Span<byte> buffer)
         {

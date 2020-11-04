@@ -1,18 +1,24 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace BTree
 {
     public class BTreeSet<T> : ISet<T>
     {
-        private BTree<T> _bTree;
+        private readonly BTree<T> _bTree;
 
-        public int Count { get; }
+        public int Count => throw new NotImplementedException();
         public bool IsReadOnly => false;
 
-        public IEnumerator<T> GetEnumerator()
+        public BTreeSet(BTree<T> bTree)
         {
-            throw new System.NotImplementedException();
+            _bTree = bTree;
+        }
+
+        public virtual IEnumerator<T> GetEnumerator()
+        {
+            return _bTree.Enumerate(false).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -20,83 +26,95 @@ namespace BTree
             return GetEnumerator();
         }
 
-        void ICollection<T>.Add(T item)
+        public virtual void ExceptWith(IEnumerable<T> other)
         {
-            _bTree.Add(item);
+            foreach (var item in other)
+                _bTree.Remove(item);
         }
 
-        public void ExceptWith(IEnumerable<T> other)
+        public virtual void IntersectWith(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            var toRemove = new List<T>();
+            foreach (var item in other)
+            {
+                if (_bTree.Contains(item))
+                    continue;
+                toRemove.Add(item);
+            }
+            foreach (var item in toRemove)
+                _bTree.Remove(item);
         }
 
-        public void IntersectWith(IEnumerable<T> other)
+        public virtual bool IsProperSubsetOf(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool IsProperSubsetOf(IEnumerable<T> other)
+        public virtual bool IsProperSupersetOf(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool IsProperSupersetOf(IEnumerable<T> other)
+        public virtual bool IsSubsetOf(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool IsSubsetOf(IEnumerable<T> other)
+        public virtual bool IsSupersetOf(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool IsSupersetOf(IEnumerable<T> other)
+        public virtual bool Overlaps(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool Overlaps(IEnumerable<T> other)
+        public virtual bool SetEquals(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public bool SetEquals(IEnumerable<T> other)
+        public virtual void SymmetricExceptWith(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public void SymmetricExceptWith(IEnumerable<T> other)
+        public virtual void UnionWith(IEnumerable<T> other)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
-        public void UnionWith(IEnumerable<T> other)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        bool ISet<T>.Add(T item)
+        public virtual bool Add(T item)
         {
             _bTree.Add(item);
             return true;
         }
 
-        public void Clear()
+        void ICollection<T>.Add(T item)
         {
-            throw new System.NotImplementedException();
+            if (item == null)
+                throw new ArgumentNullException(nameof(item));
+            Add(item);
         }
 
-        public bool Contains(T item)
+        public virtual void Clear()
+        {
+            throw new NotImplementedException();
+        }
+
+        public virtual bool Contains(T item)
         {
             return _bTree.Contains(item);
         }
 
-        public void CopyTo(T[] array, int arrayIndex)
+        public virtual void CopyTo(T[] array, int arrayIndex)
         {
-            throw new System.NotImplementedException();
+            foreach (var item in _bTree.Enumerate(false))
+                array[arrayIndex++] = item;
         }
 
-        public bool Remove(T item)
+        public virtual bool Remove(T item)
         {
             return _bTree.Remove(item);
         }

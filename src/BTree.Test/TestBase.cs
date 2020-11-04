@@ -43,7 +43,7 @@ namespace BTree.Test
             if (type == typeof(BTree<>))
                 return new BTree<int>(t, Comparer<int>.Default);
             if (type == typeof(DiskBTree<>))
-                return new Int32DiskBTree(new MemoryStream(), t, Comparer<int>.Default);
+                return new DiskBTree<int>(new MemoryStream(), t);
             throw new NotSupportedException();
         }
     }
