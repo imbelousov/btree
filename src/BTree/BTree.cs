@@ -147,7 +147,8 @@ namespace BTree
 
         private bool UpdateInternal(T item, Func<T, T> updater)
         {
-            var (node, i) = DeepSearch(Root, item);
+            var stack = Search(Root, item, false);
+            var (node, i) = stack.Peek();
             if (i < 0)
                 return false;
             var oldItem = node.Items[i];
@@ -167,7 +168,8 @@ namespace BTree
 
         private bool ContainsInternal(T item)
         {
-            var (_, i) = DeepSearch(Root, item);
+            var stack = Search(Root, item, true);
+            var (_, i) = stack.Peek();
             return i >= 0;
         }
 
@@ -233,16 +235,30 @@ namespace BTree
             }
         }
 
-        private (BTreeNode, int) DeepSearch(BTreeNode node, T item)
+        private Stack<(BTreeNode, int)> Search(BTreeNode node, T item, bool searchAny)
         {
-            var i = BinarySearch(node, item);
-            if (i >= 0)
-                return (node, i);
-            if (node.IsLeaf)
-                return (null, -1);
-            i = ~i;
-            Read(node.Children[i]);
-            return DeepSearch(node.Children[i], item);
+            var stack = new Stack<(BTreeNode, int)>();
+            var found = false;
+            while (true)
+            {
+                var i = BinarySearch(node, item);
+                if (i < 0 && found)
+                    break;
+                stack.Push((node, i));
+                if (node.IsLeaf)
+                    break;
+                if (i < 0)
+                    i = ~i;
+                else
+                {
+                    if (searchAny)
+                        break;
+                    found = true;
+                }
+                node = node.Children[i];
+                Read(node);
+            }
+            return stack;
         }
 
         private int BinarySearch(BTreeNode node, T item)
