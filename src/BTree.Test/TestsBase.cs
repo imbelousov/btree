@@ -13,12 +13,15 @@ namespace BTree.Test
     [TestFixture(typeof(DiskBTree<>), 3)]
     [TestFixture(typeof(DiskBTree<>), 10)]
     [TestFixture(typeof(DiskBTree<>), 100)]
-    public abstract class TestsBase
+    public abstract class TestsBase<T>
     {
         private readonly Type _type;
         private readonly int _t;
 
-        protected BTree<int> Tree { get; private set; }
+        protected BTree<T> Tree { get; private set; }
+
+        protected virtual IComparer<T> Comparer => Comparer<T>.Default;
+        protected virtual IItemSerializer<T> Serializer => ItemSerializer<T>.Default;
 
         public TestsBase(Type type, int t)
         {
@@ -38,12 +41,12 @@ namespace BTree.Test
             (Tree as IDisposable)?.Dispose();
         }
 
-        private BTree<int> CreateTree(Type type, int t)
+        private BTree<T> CreateTree(Type type, int t)
         {
             if (type == typeof(BTree<>))
-                return new BTree<int>(t, Comparer<int>.Default);
+                return new BTree<T>(t);
             if (type == typeof(DiskBTree<>))
-                return new DiskBTree<int>(new MemoryStream(), t);
+                return new DiskBTree<T>(new MemoryStream(), t);
             throw new NotSupportedException();
         }
     }

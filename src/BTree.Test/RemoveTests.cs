@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace BTree.Test
 {
-    public class RemoveTests : TestsBase
+    public class RemoveTests : TestsBase<int>
     {
         [Test]
         public void RemoveFromEmptyTree()

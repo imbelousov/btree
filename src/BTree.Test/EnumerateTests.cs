@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace BTree.Test
 {
-    public class EnumerateTests : TestsBase
+    public class EnumerateTests : TestsBase<int>
     {
         [Test]
         public void EnumerateEmptyTree()

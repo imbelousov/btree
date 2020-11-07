@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace BTree.Test
 {
-    public class ContainsTests : TestsBase
+    public class ContainsTests : TestsBase<int>
     {
         [TestCase(0)]
         [TestCase(1)]
