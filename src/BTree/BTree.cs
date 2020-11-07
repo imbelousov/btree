@@ -70,9 +70,14 @@ namespace BTree
         public virtual IEnumerable<T> Enumerate(bool reverse)
         {
             InitIfNeeded();
+            var stack = new Stack<(BTreeNode, int)>();
             if (reverse)
-                return EnumerateReverse(Root);
-            return Enumerate(Root);
+            {
+                stack.Push((Root, Root.N));
+                return EnumerateReverse(stack);
+            }
+            stack.Push((Root, 0));
+            return Enumerate(stack);
         }
 
         protected virtual void Read(BTreeNode node)
@@ -176,50 +181,56 @@ namespace BTree
             Read(Root);
         }
 
-        private IEnumerable<T> Enumerate(BTreeNode node)
+        private IEnumerable<T> Enumerate(Stack<(BTreeNode, int)> stack)
         {
-            for (var i = 0; i < node.N; i++)
+            while (stack.TryPop(out var tuple))
             {
-                if (!node.IsLeaf)
+                var (node, i) = tuple;
+                if (node.IsLeaf)
                 {
+                    for (var j = 0; j < node.N; j++)
+                        yield return node.Items[j];
+                    FreeNode(node);
+                }
+                else
+                {
+                    if (i > 0)
+                        yield return node.Items[i - 1];
+                    if (i < node.N)
+                        stack.Push((node, i + 1));
                     var child = node.Children[i];
                     Read(child);
-                    foreach (var item in Enumerate(child))
-                        yield return item;
+                    stack.Push((child, 0));
+                    if (i == node.N)
+                        FreeNode(node);
                 }
-                yield return node.Items[i];
             }
-            if (!node.IsLeaf)
-            {
-                var child = node.Children[node.N];
-                Read(child);
-                foreach (var item in Enumerate(child))
-                    yield return item;
-            }
-            FreeNode(node);
         }
 
-        private IEnumerable<T> EnumerateReverse(BTreeNode node)
+        private IEnumerable<T> EnumerateReverse(Stack<(BTreeNode, int)> stack)
         {
-            if (!node.IsLeaf)
+            while (stack.TryPop(out var tuple))
             {
-                var child = node.Children[node.N];
-                Read(child);
-                foreach (var item in EnumerateReverse(child))
-                    yield return item;
-            }
-            for (var i = node.N - 1; i >= 0; i--)
-            {
-                yield return node.Items[i];
-                if (!node.IsLeaf)
+                var (node, i) = tuple;
+                if (node.IsLeaf)
                 {
+                    for (var j = node.N - 1; j >= 0; j--)
+                        yield return node.Items[j];
+                    FreeNode(node);
+                }
+                else
+                {
+                    if (i < node.N)
+                        yield return node.Items[i];
+                    if (i > 0)
+                        stack.Push((node, i - 1));
                     var child = node.Children[i];
                     Read(child);
-                    foreach (var item in EnumerateReverse(child))
-                        yield return item;
+                    stack.Push((child, child.N));
+                    if (i == 0)
+                        FreeNode(node);
                 }
             }
-            FreeNode(node);
         }
 
         private (BTreeNode, int) DeepSearch(BTreeNode node, T item)
