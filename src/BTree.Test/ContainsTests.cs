@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace BTree.Test
 {
-    public class Contains : TestBase
+    public class ContainsTests : TestsBase
     {
         [TestCase(0)]
         [TestCase(1)]
@@ -91,7 +91,7 @@ namespace BTree.Test
             Assert.IsTrue(Tree.Contains(value));
         }
 
-        public Contains(Type type, int t)
+        public ContainsTests(Type type, int t)
             : base(type, t)
         {
         }

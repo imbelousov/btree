@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace BTree.Test
 {
-    public class Enumerate : TestBase
+    public class EnumerateTests : TestsBase
     {
         [Test]
         public void EnumerateEmptyTree()
@@ -168,7 +168,7 @@ namespace BTree.Test
             CollectionAssert.AreEqual(values, Tree.Enumerate(true));
         }
 
-        public Enumerate(Type type, int t)
+        public EnumerateTests(Type type, int t)
             : base(type, t)
         {
         }

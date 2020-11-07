@@ -13,14 +13,14 @@ namespace BTree.Test
     [TestFixture(typeof(DiskBTree<>), 3)]
     [TestFixture(typeof(DiskBTree<>), 10)]
     [TestFixture(typeof(DiskBTree<>), 100)]
-    public abstract class TestBase
+    public abstract class TestsBase
     {
         private readonly Type _type;
         private readonly int _t;
 
         protected BTree<int> Tree { get; private set; }
 
-        public TestBase(Type type, int t)
+        public TestsBase(Type type, int t)
         {
             _type = type;
             _t = t;
