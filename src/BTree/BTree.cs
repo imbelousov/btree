@@ -247,12 +247,9 @@ namespace BTree
         private Stack<(BTreeNode, int)> Search(BTreeNode node, T item, bool searchAny)
         {
             var stack = new Stack<(BTreeNode, int)>();
-            var found = false;
             while (true)
             {
                 var i = BinarySearch(node, item);
-                if (i < 0 && found)
-                    break;
                 if (node.IsLeaf)
                 {
                     stack.Push((node, i));
@@ -270,10 +267,7 @@ namespace BTree
                     break;
                 }
                 else
-                {
-                    found = true;
                     stack.Push((node, i + 1));
-                }
                 node = node.Children[i];
                 Read(node);
             }
@@ -295,8 +289,8 @@ namespace BTree
                     l = i + 1;
                 else
                 {
-                    while (i < node.N - 1 && _comparer.Compare(item, node.Items[i + 1]) == 0)
-                        i++;
+                    while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) == 0)
+                        i--;
                     return i;
                 }
             }

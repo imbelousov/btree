@@ -96,6 +96,22 @@ namespace BTree.Test
                 CollectionAssert.AreEqual(items.Skip(i), Tree.EnumerateFrom(items[i]));
         }
 
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(20)]
+        public void EnumerateFromEachItemButWithDuplicates(int duplicates)
+        {
+            const int count = 1000;
+            var items = Enumerable.Range(1, count).SelectMany(x => Enumerable.Repeat(x, duplicates)).ToList();
+            foreach (var item in items)
+                Tree.Add(item);
+            for (var i = 0; i < count; i++)
+                CollectionAssert.AreEqual(items.Where(x => x >= i + 1), Tree.EnumerateFrom(i + 1));
+        }
+
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(3)]
