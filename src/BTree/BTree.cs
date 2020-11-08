@@ -80,6 +80,13 @@ namespace BTree
             return Enumerate(stack);
         }
 
+        public virtual IEnumerable<T> EnumerateFrom(T item)
+        {
+            InitIfNeeded();
+            var stack = Search(Root, item, false);
+            return Enumerate(stack);
+        }
+
         protected virtual void Read(BTreeNode node)
         {
         }
@@ -188,9 +195,11 @@ namespace BTree
             while (stack.TryPop(out var tuple))
             {
                 var (node, i) = tuple;
+                if (i < 0)
+                    i = ~i;
                 if (node.IsLeaf)
                 {
-                    for (var j = 0; j < node.N; j++)
+                    for (var j = i; j < node.N; j++)
                         yield return node.Items[j];
                     FreeNode(node);
                 }
@@ -244,16 +253,26 @@ namespace BTree
                 var i = BinarySearch(node, item);
                 if (i < 0 && found)
                     break;
-                stack.Push((node, i));
                 if (node.IsLeaf)
+                {
+                    stack.Push((node, i));
                     break;
+                }
                 if (i < 0)
+                {
                     i = ~i;
+                    if (i < node.N)
+                        stack.Push((node, i + 1));
+                }
+                else if (searchAny)
+                {
+                    stack.Push((node, i));
+                    break;
+                }
                 else
                 {
-                    if (searchAny)
-                        break;
                     found = true;
+                    stack.Push((node, i + 1));
                 }
                 node = node.Children[i];
                 Read(node);
