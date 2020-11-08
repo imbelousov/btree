@@ -164,6 +164,32 @@ namespace BTree
             }
         }
 
+        public override IEnumerable<T> Enumerate(bool reverse)
+        {
+            try
+            {
+                foreach (var x in base.Enumerate(reverse))
+                    yield return x;
+            }
+            finally
+            {
+                FreeAllNodes();
+            }
+        }
+
+        public override IEnumerable<T> EnumerateFrom(T item)
+        {
+            try
+            {
+                foreach (var x in base.EnumerateFrom(item))
+                    yield return x;
+            }
+            finally
+            {
+                FreeAllNodes();
+            }
+        }
+
         protected override void Write(BTreeNode node)
         {
             var diskNode = (DiskBTreeNode) node;
