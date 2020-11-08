@@ -223,9 +223,11 @@ namespace BTree
             while (stack.TryPop(out var tuple))
             {
                 var (node, i) = tuple;
+                if (i < -1)
+                    i = ~i;
                 if (node.IsLeaf)
                 {
-                    for (var j = node.N - 1; j >= 0; j--)
+                    for (var j = i; j >= 0; j--)
                         yield return node.Items[j];
                     FreeNode(node);
                 }
@@ -258,16 +260,20 @@ namespace BTree
                 if (i < 0)
                 {
                     i = ~i;
-                    if (i < node.N)
+                    if (mode == SearchMode.First && i < node.N)
                         stack.Push((node, i + 1));
+                    else if (mode == SearchMode.Last && i > 0)
+                        stack.Push((node, i - 1));
                 }
                 else if (mode == SearchMode.Any)
                 {
                     stack.Push((node, i));
                     break;
                 }
-                else
+                else if (mode == SearchMode.First && i < node.N)
                     stack.Push((node, i + 1));
+                else if (mode == SearchMode.Last && i > 0)
+                    stack.Push((node, i - 1));
                 node = node.Children[i];
                 Read(node);
             }

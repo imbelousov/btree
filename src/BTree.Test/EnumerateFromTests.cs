@@ -40,12 +40,42 @@ namespace BTree.Test
         [TestCase(10)]
         [TestCase(100)]
         [TestCase(10000)]
+        public void EnumerateFromLesserValue_Reverse(int count)
+        {
+            var items = Enumerable.Range(1, count).ToList();
+            foreach (var item in items)
+                Tree.Add(item);
+            CollectionAssert.IsEmpty(Tree.EnumerateFrom(0, true));
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(100)]
+        [TestCase(10000)]
         public void EnumerateFromMinValue(int count)
         {
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
             CollectionAssert.AreEqual(items, Tree.EnumerateFrom(1, false));
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(5)]
+        [TestCase(10)]
+        [TestCase(100)]
+        [TestCase(10000)]
+        public void EnumerateFromMinValue_Reverse(int count)
+        {
+            var items = Enumerable.Range(1, count).ToList();
+            foreach (var item in items)
+                Tree.Add(item);
+            CollectionAssert.AreEqual(new[] {items[0]}, Tree.EnumerateFrom(1, true));
         }
 
         [TestCase(1, 3)]
@@ -68,6 +98,28 @@ namespace BTree.Test
             foreach (var item in items)
                 Tree.Add(item);
             CollectionAssert.AreEqual(items.Skip(startIndex), Tree.EnumerateFrom(items[startIndex], false));
+        }
+
+        [TestCase(1, 3)]
+        [TestCase(1, 10)]
+        [TestCase(1, 100)]
+        [TestCase(1, 10000)]
+        [TestCase(20, 100)]
+        [TestCase(50, 100)]
+        [TestCase(70, 100)]
+        [TestCase(90, 100)]
+        [TestCase(99, 100)]
+        [TestCase(100, 10000)]
+        [TestCase(4000, 10000)]
+        [TestCase(8500, 10000)]
+        [TestCase(9900, 10000)]
+        [TestCase(9999, 10000)]
+        public void EnumerateFromMiddleOfTree_Reverse(int startIndex, int count)
+        {
+            var items = Enumerable.Range(1, count).ToList();
+            foreach (var item in items)
+                Tree.Add(item);
+            CollectionAssert.AreEqual(items.Take(startIndex + 1).Reverse(), Tree.EnumerateFrom(items[startIndex], true));
         }
 
         [TestCase(1, 3)]
