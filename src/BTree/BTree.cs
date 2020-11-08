@@ -80,11 +80,11 @@ namespace BTree
             return Enumerate(stack);
         }
 
-        public virtual IEnumerable<T> EnumerateFrom(T item)
+        public virtual IEnumerable<T> EnumerateFrom(T item, bool reverse)
         {
             InitIfNeeded();
-            var stack = Search(Root, item, false);
-            return Enumerate(stack);
+            var stack = Search(Root, item, reverse ? SearchMode.Last : SearchMode.First);
+            return reverse ? EnumerateReverse(stack) : Enumerate(stack);
         }
 
         protected virtual void Read(BTreeNode node)
@@ -154,7 +154,7 @@ namespace BTree
 
         private bool UpdateInternal(T item, Func<T, T> updater)
         {
-            var stack = Search(Root, item, false);
+            var stack = Search(Root, item, SearchMode.Any);
             var (node, i) = stack.Peek();
             if (i < 0)
                 return false;
@@ -175,7 +175,7 @@ namespace BTree
 
         private bool ContainsInternal(T item)
         {
-            var stack = Search(Root, item, true);
+            var stack = Search(Root, item, SearchMode.Any);
             var (_, i) = stack.Peek();
             return i >= 0;
         }
@@ -244,12 +244,12 @@ namespace BTree
             }
         }
 
-        private Stack<(BTreeNode, int)> Search(BTreeNode node, T item, bool searchAny)
+        private Stack<(BTreeNode, int)> Search(BTreeNode node, T item, SearchMode mode)
         {
             var stack = new Stack<(BTreeNode, int)>();
             while (true)
             {
-                var i = BinarySearch(node, item);
+                var i = BinarySearch(node, item, mode);
                 if (node.IsLeaf)
                 {
                     stack.Push((node, i));
@@ -261,7 +261,7 @@ namespace BTree
                     if (i < node.N)
                         stack.Push((node, i + 1));
                 }
-                else if (searchAny)
+                else if (mode == SearchMode.Any)
                 {
                     stack.Push((node, i));
                     break;
@@ -274,7 +274,7 @@ namespace BTree
             return stack;
         }
 
-        private int BinarySearch(BTreeNode node, T item)
+        private int BinarySearch(BTreeNode node, T item, SearchMode mode)
         {
             var l = 0;
             var r = node.N - 1;
@@ -289,8 +289,16 @@ namespace BTree
                     l = i + 1;
                 else
                 {
-                    while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) == 0)
-                        i--;
+                    if (mode == SearchMode.First)
+                    {
+                        while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) == 0)
+                            i--;
+                    }
+                    else if (mode == SearchMode.Last)
+                    {
+                        while (i < node.N - 1 && _comparer.Compare(item, node.Items[i + 1]) == 0)
+                            i++;
+                    }
                     return i;
                 }
             }
@@ -357,7 +365,7 @@ namespace BTree
 
         private bool Remove(BTreeNode node, T item)
         {
-            var i = BinarySearch(node, item);
+            var i = BinarySearch(node, item, SearchMode.Any);
             if (i >= 0)
             {
                 if (node.IsLeaf)
@@ -542,6 +550,13 @@ namespace BTree
             public int N { get; set; }
             public T[] Items { get; set; }
             public BTreeNode[] Children { get; set; }
+        }
+
+        private enum SearchMode
+        {
+            Any,
+            First,
+            Last
         }
     }
 }

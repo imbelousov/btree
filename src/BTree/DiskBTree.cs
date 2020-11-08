@@ -177,11 +177,11 @@ namespace BTree
             }
         }
 
-        public override IEnumerable<T> EnumerateFrom(T item)
+        public override IEnumerable<T> EnumerateFrom(T item, bool reverse)
         {
             try
             {
-                foreach (var x in base.EnumerateFrom(item))
+                foreach (var x in base.EnumerateFrom(item, reverse))
                     yield return x;
             }
             finally

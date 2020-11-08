@@ -9,7 +9,13 @@ namespace BTree.Test
         [Test]
         public void EnumerateEmptyTree()
         {
-            CollectionAssert.IsEmpty(Tree.EnumerateFrom(0));
+            CollectionAssert.IsEmpty(Tree.EnumerateFrom(0, false));
+        }
+
+        [Test]
+        public void EnumerateEmptyTree_Reverse()
+        {
+            CollectionAssert.IsEmpty(Tree.EnumerateFrom(0, false));
         }
 
         [TestCase(1)]
@@ -24,7 +30,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.AreEqual(items, Tree.EnumerateFrom(0));
+            CollectionAssert.AreEqual(items, Tree.EnumerateFrom(0, false));
         }
 
         [TestCase(1)]
@@ -39,7 +45,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.AreEqual(items, Tree.EnumerateFrom(1));
+            CollectionAssert.AreEqual(items, Tree.EnumerateFrom(1, false));
         }
 
         [TestCase(1, 3)]
@@ -61,7 +67,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.AreEqual(items.Skip(startIndex), Tree.EnumerateFrom(items[startIndex]));
+            CollectionAssert.AreEqual(items.Skip(startIndex), Tree.EnumerateFrom(items[startIndex], false));
         }
 
         [TestCase(1, 3)]
@@ -83,7 +89,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).Select(x => x * 2).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.AreEqual(items.Skip(startIndex), Tree.EnumerateFrom(items[startIndex] - 1));
+            CollectionAssert.AreEqual(items.Skip(startIndex), Tree.EnumerateFrom(items[startIndex] - 1, false));
         }
 
         [Test]
@@ -93,7 +99,7 @@ namespace BTree.Test
             foreach (var item in items)
                 Tree.Add(item);
             for (var i = 0; i < items.Count; i++)
-                CollectionAssert.AreEqual(items.Skip(i), Tree.EnumerateFrom(items[i]));
+                CollectionAssert.AreEqual(items.Skip(i), Tree.EnumerateFrom(items[i], false));
         }
 
         [TestCase(2)]
@@ -109,7 +115,7 @@ namespace BTree.Test
             foreach (var item in items)
                 Tree.Add(item);
             for (var i = 0; i < count; i++)
-                CollectionAssert.AreEqual(items.Where(x => x >= i + 1), Tree.EnumerateFrom(i + 1));
+                CollectionAssert.AreEqual(items.Where(x => x >= i + 1), Tree.EnumerateFrom(i + 1, false));
         }
 
         [TestCase(1)]
@@ -124,7 +130,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.AreEqual(new[] {items[^1]}, Tree.EnumerateFrom(count));
+            CollectionAssert.AreEqual(new[] {items[^1]}, Tree.EnumerateFrom(count, false));
         }
 
         [TestCase(1)]
@@ -139,7 +145,7 @@ namespace BTree.Test
             var items = Enumerable.Range(1, count).ToList();
             foreach (var item in items)
                 Tree.Add(item);
-            CollectionAssert.IsEmpty(Tree.EnumerateFrom(count + 1));
+            CollectionAssert.IsEmpty(Tree.EnumerateFrom(count + 1, false));
         }
 
         public EnumerateFromTests(Type type, int t)
