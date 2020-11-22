@@ -80,6 +80,7 @@ namespace BTree.Test
 
         [TestCase(1, 3)]
         [TestCase(1, 10)]
+        [TestCase(3, 10)]
         [TestCase(1, 100)]
         [TestCase(1, 10000)]
         [TestCase(20, 100)]
@@ -102,6 +103,7 @@ namespace BTree.Test
 
         [TestCase(1, 3)]
         [TestCase(1, 10)]
+        [TestCase(3, 10)]
         [TestCase(1, 100)]
         [TestCase(1, 10000)]
         [TestCase(20, 100)]
@@ -124,6 +126,7 @@ namespace BTree.Test
 
         [TestCase(1, 3)]
         [TestCase(1, 10)]
+        [TestCase(3, 10)]
         [TestCase(1, 100)]
         [TestCase(1, 10000)]
         [TestCase(20, 100)]

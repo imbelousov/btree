@@ -70,21 +70,33 @@ namespace BTree
         public virtual IEnumerable<T> Enumerate(bool reverse)
         {
             InitIfNeeded();
-            var stack = new Stack<(BTreeNode, int)>();
             if (reverse)
             {
+                var stack = new Stack<(BTreeNode, int)>();
                 stack.Push((Root, Root.N));
                 return EnumerateReverse(stack);
             }
-            stack.Push((Root, 0));
-            return Enumerate(stack);
+            else
+            {
+                var stack = new Stack<(BTreeNode, int)>();
+                stack.Push((Root, 0));
+                return Enumerate(stack);
+            }
         }
 
         public virtual IEnumerable<T> EnumerateFrom(T item, bool reverse)
         {
             InitIfNeeded();
-            var stack = Search(Root, item, reverse ? SearchMode.Last : SearchMode.First);
-            return reverse ? EnumerateReverse(stack) : Enumerate(stack);
+            if (!reverse)
+            {
+                var stack = SearchFirst(Root, item);
+                return Enumerate(stack);
+            }
+            else
+            {
+                var stack = SearchLast(Root, item);
+                return EnumerateReverse(stack);
+            }
         }
 
         protected virtual void Read(BTreeNode node)
@@ -154,8 +166,7 @@ namespace BTree
 
         private bool UpdateInternal(T item, Func<T, T> updater)
         {
-            var stack = Search(Root, item, SearchMode.Any);
-            var (node, i) = stack.Peek();
+            var (node, i) = SearchAny(Root, item);
             if (i < 0)
                 return false;
             var oldItem = node.Items[i];
@@ -175,8 +186,7 @@ namespace BTree
 
         private bool ContainsInternal(T item)
         {
-            var stack = Search(Root, item, SearchMode.Any);
-            var (_, i) = stack.Peek();
+            var (_, i) = SearchAny(Root, item);
             return i >= 0;
         }
 
@@ -227,8 +237,8 @@ namespace BTree
                     i = ~i;
                 if (node.IsLeaf)
                 {
-                    for (var j = i; j >= 0; j--)
-                        yield return node.Items[j];
+                    for (var j = i; j > 0; j--)
+                        yield return node.Items[j - 1];
                     FreeNode(node);
                 }
                 else
@@ -246,12 +256,13 @@ namespace BTree
             }
         }
 
-        private Stack<(BTreeNode, int)> Search(BTreeNode node, T item, SearchMode mode)
+        private Stack<(BTreeNode, int)> SearchFirst(BTreeNode node, T item)
         {
             var stack = new Stack<(BTreeNode, int)>();
             while (true)
             {
-                var i = BinarySearch(node, item, mode);
+                var i = BinarySearch(node, item);
+                i = FindLeftBorder(node, item, i);
                 if (node.IsLeaf)
                 {
                     stack.Push((node, i));
@@ -260,19 +271,36 @@ namespace BTree
                 if (i < 0)
                 {
                     i = ~i;
-                    if (mode == SearchMode.First && i < node.N)
+                    if (i < node.N)
                         stack.Push((node, i + 1));
-                    else if (mode == SearchMode.Last && i > 0)
-                        stack.Push((node, i - 1));
                 }
-                else if (mode == SearchMode.Any)
+                else
+                    stack.Push((node, i + 1));
+                node = node.Children[i];
+                Read(node);
+            }
+            return stack;
+        }
+
+        private Stack<(BTreeNode, int)> SearchLast(BTreeNode node, T item)
+        {
+            var stack = new Stack<(BTreeNode, int)>();
+            while (true)
+            {
+                var i = BinarySearch(node, item);
+                i = FindRightBorder(node, item, i);
+                if (node.IsLeaf)
                 {
                     stack.Push((node, i));
                     break;
                 }
-                else if (mode == SearchMode.First && i < node.N)
-                    stack.Push((node, i + 1));
-                else if (mode == SearchMode.Last && i > 0)
+                if (i < 0)
+                {
+                    i = ~i;
+                    if (i > 0)
+                        stack.Push((node, i - 1));
+                }
+                else
                     stack.Push((node, i - 1));
                 node = node.Children[i];
                 Read(node);
@@ -280,7 +308,24 @@ namespace BTree
             return stack;
         }
 
-        private int BinarySearch(BTreeNode node, T item, SearchMode mode)
+        private (BTreeNode, int) SearchAny(BTreeNode node, T item)
+        {
+            while (true)
+            {
+                var i = BinarySearch(node, item);
+                i = FindLeftBorder(node, item, i);
+                if (node.IsLeaf)
+                    return (node, i);
+                if (i < 0)
+                    i = ~i;
+                else
+                    return (node, i);
+                node = node.Children[i];
+                Read(node);
+            }
+        }
+
+        private int BinarySearch(BTreeNode node, T item)
         {
             var l = 0;
             var r = node.N - 1;
@@ -294,23 +339,37 @@ namespace BTree
                 else if (cmp > 0)
                     l = i + 1;
                 else
-                {
-                    if (mode == SearchMode.First)
-                    {
-                        while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) == 0)
-                            i--;
-                    }
-                    else if (mode == SearchMode.Last)
-                    {
-                        while (i < node.N - 1 && _comparer.Compare(item, node.Items[i + 1]) == 0)
-                            i++;
-                    }
                     return i;
-                }
             }
             while (i < node.N && _comparer.Compare(item, node.Items[i]) > 0)
                 i++;
             return ~i;
+        }
+
+        private int FindLeftBorder(BTreeNode node, T item, int startIndex)
+        {
+            var i = startIndex;
+            var inverse = i < 0;
+            if (inverse)
+                i = ~i;
+            while (i > 0 && _comparer.Compare(item, node.Items[i - 1]) == 0)
+                i--;
+            if (inverse)
+                i = ~i;
+            return i;
+        }
+
+        private int FindRightBorder(BTreeNode node, T item, int startIndex)
+        {
+            var i = startIndex;
+            var inverse = i < 0;
+            if (inverse)
+                i = ~i;
+            while (i < node.N && _comparer.Compare(item, node.Items[i]) == 0)
+                i++;
+            if (inverse)
+                i = ~i;
+            return i;
         }
 
         private void SplitChild(BTreeNode node, int i)
@@ -371,7 +430,7 @@ namespace BTree
 
         private bool Remove(BTreeNode node, T item)
         {
-            var i = BinarySearch(node, item, SearchMode.Any);
+            var i = BinarySearch(node, item);
             if (i >= 0)
             {
                 if (node.IsLeaf)
@@ -556,13 +615,6 @@ namespace BTree
             public int N { get; set; }
             public T[] Items { get; set; }
             public BTreeNode[] Children { get; set; }
-        }
-
-        private enum SearchMode
-        {
-            Any,
-            First,
-            Last
         }
     }
 }
