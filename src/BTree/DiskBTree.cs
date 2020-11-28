@@ -193,29 +193,52 @@ namespace BTree
         protected override void Write(BTreeNode node)
         {
             var diskNode = (DiskBTreeNode) node;
-            var buffer = (Span<byte>) stackalloc byte[1 + 4 + node.N * _serializer.MaxSerializedItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
+            var buffer = (Span<byte>) stackalloc byte[PageSize];
             if (diskNode.Id < 0)
                 diskNode.Id = FindNewNodeId();
 
+            var offset = WriteHeader(diskNode, buffer);
+            offset += WriteChildren(diskNode, buffer.Slice(offset));
+            offset += WriteItems(diskNode, buffer.Slice(offset));
+
+            WriteAt(GetOffset(diskNode.Id), buffer.Slice(0, offset));
+        }
+
+        private int WriteHeader(DiskBTreeNode node, Span<byte> buffer)
+        {
             buffer[0] = (byte) (node.IsLeaf ? NodeType.Leaf : NodeType.NonLeaf);
             BitConverter.TryWriteBytes(buffer.Slice(1, 4), node.N);
-            for (var i = 0; i < node.N; i++)
-                _serializer.SerializeItem(node.Items[i], buffer.Slice(1 + 4 + i * _serializer.MaxSerializedItemLength, _serializer.MaxSerializedItemLength));
-            if (!node.IsLeaf)
-            {
-                for (var i = 0; i < node.N + 1; i++)
-                {
-                    var childNode = (DiskBTreeNode) node.Children[i];
-                    BitConverter.TryWriteBytes(buffer.Slice(1 + 4 + node.N * _serializer.MaxSerializedItemLength + i * 8, 8), childNode?.Id ?? -1);
-                }
-            }
+            return 5;
+        }
 
-            WriteAt(GetOffset(diskNode.Id), buffer);
+        private int WriteChildren(DiskBTreeNode node, Span<byte> buffer)
+        {
+            if (node.IsLeaf)
+                return 0;
+            for (var i = 0; i < node.N + 1; i++)
+            {
+                var childNode = (DiskBTreeNode) node.Children[i];
+                BitConverter.TryWriteBytes(buffer.Slice(i * 8, 8), childNode?.Id ?? -1);
+            }
+            return (node.N + 1) * 8;
+        }
+
+        private int WriteItems(DiskBTreeNode node, Span<byte> buffer)
+        {
+            var itemLength = _serializer.MaxSerializedItemLength;
+            for (var i = 0; i < node.N; i++)
+                _serializer.SerializeItem(node.Items[i], buffer.Slice(i * itemLength, itemLength));
+            return node.N * itemLength;
         }
 
         protected override void WriteRoot(BTreeNode rootNode)
         {
-            WriteAt(0, ((DiskBTreeNode) rootNode).Id);
+            WriteRootId(((DiskBTreeNode) rootNode).Id);
+        }
+
+        private void WriteRootId(long id)
+        {
+            WriteAt(0, id);
         }
 
         protected override void Read(BTreeNode node)
@@ -224,45 +247,53 @@ namespace BTree
             if (diskNode.Synchronized)
                 return;
 
-            if (diskNode.Id == 0 && _stream.Length == HeaderSize)
-                return;
-
-            var buffer = (Span<byte>) stackalloc byte[1 + 4];
+            var buffer = (Span<byte>)stackalloc byte[PageSize];
             if (!ReadAt(GetOffset(diskNode.Id), buffer))
                 ThrowCorruptedNode(diskNode.Id);
+            var offset = ReadHeader(diskNode, buffer);
+            offset += ReadChildren(diskNode, buffer.Slice(offset));
+            ReadItems(diskNode, buffer.Slice(offset));
+
+            diskNode.Synchronized = true;
+        }
+
+        private int ReadHeader(DiskBTreeNode node, Span<byte> buffer)
+        {
             node.IsLeaf = (NodeType) buffer[0] switch
             {
                 NodeType.NonLeaf => false,
                 NodeType.Leaf => true,
-                _ => ThrowCorruptedNode<bool>(diskNode.Id)
+                _ => ThrowCorruptedNode<bool>(node.Id)
             };
             node.N = BitConverter.ToInt32(buffer.Slice(1, 4));
             if (node.N < 0 || node.N > MaxItemsCount)
-                ThrowCorruptedNode<bool>(diskNode.Id);
+                ThrowCorruptedNode<bool>(node.Id);
+            return 5;
+        }
 
-            buffer = stackalloc byte[node.N * _serializer.MaxSerializedItemLength + (!node.IsLeaf ? (node.N + 1) * 8 : 0)];
-            if (!ReadAt(GetOffset(diskNode.Id) + 5, buffer))
-                ThrowCorruptedNode(diskNode.Id);
-            for (var i = 0; i < node.N; i++)
-                node.Items[i] = _serializer.DeserializeItem(buffer.Slice(i * _serializer.MaxSerializedItemLength, _serializer.MaxSerializedItemLength));
-            if (!node.IsLeaf)
+        private int ReadChildren(DiskBTreeNode node, Span<byte> buffer)
+        {
+            if (node.IsLeaf)
+                return 0;
+            for (var i = 0; i < node.N + 1; i++)
             {
-                for (var i = 0; i < node.N + 1; i++)
+                var id = BitConverter.ToInt64(buffer.Slice(i * 8, 8));
+                if (id >= 0)
                 {
-                    var id = BitConverter.ToInt64(buffer.Slice(node.N * _serializer.MaxSerializedItemLength + i * 8, 8));
-                    if (id >= 0)
-                    {
-                        if (id >= 0)
-                        {
-                            var childNode = (DiskBTreeNode) AllocateNode();
-                            node.Children[i] = childNode;
-                            childNode.Id = id;
-                        }
-                    }
+                    var childNode = (DiskBTreeNode) AllocateNode();
+                    node.Children[i] = childNode;
+                    childNode.Id = id;
                 }
             }
+            return (node.N + 1) * 8;
+        }
 
-            diskNode.Synchronized = true;
+        private int ReadItems(DiskBTreeNode node, Span<byte> buffer)
+        {
+            var itemLength = _serializer.MaxSerializedItemLength;
+            for (var i = 0; i < node.N; i++)
+                node.Items[i] = _serializer.DeserializeItem(buffer.Slice(i * itemLength, itemLength));
+            return node.N * itemLength;
         }
 
         private void ThrowCorruptedNode(long nodeId) => ThrowCorruptedNode<object>(nodeId);
@@ -333,9 +364,10 @@ namespace BTree
 
         private void Init()
         {
-            WriteAt(0, 0);
-            WriteAt(8, -1);
-            WriteAt(16, 0);
+            WriteRootId(0);
+            WriteLastDeletedNode(-1);
+            WriteLastNode(-1);
+            Write(AllocateNode());
         }
 
         private long FindNewNodeId()
@@ -345,9 +377,9 @@ namespace BTree
             {
                 var lastNode = ReadLastNode();
                 var id = lastNode + 1;
-                if (lastNode < 0)
+                if (lastNode < -1)
                     ThrowCorruptedHeader();
-                if (GetOffset(id) > _stream.Length)
+                if (GetOffset(id) + PageSize > _stream.Length)
                 {
                     ExpandFile(id + ExpansionSize);
                     if (GetOffset(id) > _stream.Length)
