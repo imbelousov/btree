@@ -4,21 +4,18 @@ orbs:
   win: circleci/windows@2.2.0
 
 jobs:
-  test:
-    executor: win/default     
-    steps:
-      - checkout
-      - run: dotnet test
   build:
     executor: win/default     
     steps:
       - checkout
       - run: dotnet build
-
-workflows:
-  test_and_build:
-    jobs:
-      - test
-      - build:
-          requires:
-            - test
+      - run: dotnet test --no-build --logger "trx"
+      - run:
+          name: test results
+          when: always
+          command: |
+              dotnet tool install -g trx2junit
+              export PATH="$PATH:/root/.dotnet/tools"
+              trx2junit tests/**/TestResults/*.trx
+      - store_test_results:
+          path: tests/TestResults
