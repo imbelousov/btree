@@ -1,17 +1,24 @@
- version: 2.1
+version: 2.1
 
- orbs:
+orbs:
   win: circleci/windows@2.2.0
 
- jobs:
-   test:
-     executor: win/default     
-     steps:
-       - checkout
-       - run: dotnet test
+jobs:
+  test:
+    executor: win/default     
+    steps:
+      - checkout
+      - run: dotnet test
+  build:
+    executor: win/default     
+    steps:
+      - checkout
+      - run: dotnet build
 
-   build:
-     executor: win/default     
-     steps:
-       - checkout
-       - run: dotnet build
+workflows:
+  test_and_build:
+    jobs:
+      - test
+      - build:
+          requires:
+            - test
