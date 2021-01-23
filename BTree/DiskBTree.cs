@@ -7,6 +7,9 @@ namespace BTree
     public class DiskBTree<T> : BTree<T>, IDisposable
     {
         private const int HeaderSize = 24;
+        private const int RootIdOffset = 0;
+        private const int LastDeletedNodeOffset = 8;
+        private const int LastNodeOffset = 16;
         private const int ExpansionSize = 1024;
         private readonly Stream _stream;
         private readonly bool _leaveOpen;
@@ -238,7 +241,7 @@ namespace BTree
 
         private void WriteRootId(long id)
         {
-            WriteAt(0, id);
+            WriteAt(RootIdOffset, id);
         }
 
         protected override void Read(BTreeNode node)
@@ -302,7 +305,7 @@ namespace BTree
 
         protected override void ReadRoot(BTreeNode rootNode)
         {
-            ((DiskBTreeNode) rootNode).Id = ReadInt64At(0, 0);
+            ((DiskBTreeNode) rootNode).Id = ReadInt64At(RootIdOffset, 0);
         }
 
         protected override void Delete(BTreeNode node)
@@ -318,22 +321,22 @@ namespace BTree
 
         protected virtual long ReadLastDeletedNode()
         {
-            return ReadInt64At(8, -1);
+            return ReadInt64At(LastDeletedNodeOffset, -1);
         }
 
         protected virtual void WriteLastDeletedNode(long id)
         {
-            WriteAt(8, id);
+            WriteAt(LastDeletedNodeOffset, id);
         }
 
         protected virtual long ReadLastNode()
         {
-            return ReadInt64At(16, -1);
+            return ReadInt64At(LastNodeOffset, -1);
         }
 
         protected virtual void WriteLastNode(long id)
         {
-            WriteAt(16, id);
+            WriteAt(LastNodeOffset, id);
         }
 
         protected override BTreeNode AllocateNode()
