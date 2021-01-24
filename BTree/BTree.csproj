@@ -8,4 +8,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+    <_Parameter1>BTree.Test</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

@@ -200,21 +200,23 @@ namespace BTree
             if (diskNode.Id < 0)
                 diskNode.Id = FindNewNodeId();
 
-            var offset = WriteHeader(diskNode, buffer);
-            offset += WriteChildren(diskNode, buffer.Slice(offset));
-            offset += WriteItems(diskNode, buffer.Slice(offset));
+            var offset = SerializeHeader(diskNode, buffer);
+            offset += SerializeChildren(diskNode, buffer.Slice(offset));
+            offset += SerializeItems(diskNode, buffer.Slice(offset));
 
-            WriteAt(GetOffset(diskNode.Id), buffer.Slice(0, offset));
+            WriteOnDisk(GetOffset(diskNode.Id), buffer.Slice(0, offset));
         }
 
-        private int WriteHeader(DiskBTreeNode node, Span<byte> buffer)
+        protected virtual void WriteOnDisk(long offset, ReadOnlySpan<byte> buffer) => WriteAt(offset, buffer);
+
+        private int SerializeHeader(DiskBTreeNode node, Span<byte> buffer)
         {
             buffer[0] = (byte) (node.IsLeaf ? NodeType.Leaf : NodeType.NonLeaf);
             BitConverter.TryWriteBytes(buffer.Slice(1, 4), node.N);
             return 5;
         }
 
-        private int WriteChildren(DiskBTreeNode node, Span<byte> buffer)
+        private int SerializeChildren(DiskBTreeNode node, Span<byte> buffer)
         {
             if (node.IsLeaf)
                 return 0;
@@ -226,7 +228,7 @@ namespace BTree
             return (node.N + 1) * 8;
         }
 
-        private int WriteItems(DiskBTreeNode node, Span<byte> buffer)
+        private int SerializeItems(DiskBTreeNode node, Span<byte> buffer)
         {
             var itemLength = _serializer.MaxSerializedItemLength;
             for (var i = 0; i < node.N; i++)
@@ -250,17 +252,19 @@ namespace BTree
             if (diskNode.Synchronized)
                 return;
 
-            var buffer = (Span<byte>)stackalloc byte[PageSize];
-            if (!ReadAt(GetOffset(diskNode.Id), buffer))
+            var buffer = (Span<byte>) stackalloc byte[PageSize];
+            if (!ReadFromDisk(GetOffset(diskNode.Id), buffer))
                 ThrowCorruptedNode(diskNode.Id);
-            var offset = ReadHeader(diskNode, buffer);
-            offset += ReadChildren(diskNode, buffer.Slice(offset));
-            ReadItems(diskNode, buffer.Slice(offset));
+            var offset = DeserializeHeader(diskNode, buffer);
+            offset += DeserializeChildren(diskNode, buffer.Slice(offset));
+            DeserializeItems(diskNode, buffer.Slice(offset));
 
             diskNode.Synchronized = true;
         }
 
-        private int ReadHeader(DiskBTreeNode node, Span<byte> buffer)
+        protected virtual bool ReadFromDisk(long offset, Span<byte> buffer) => ReadAt(offset, buffer);
+
+        private int DeserializeHeader(DiskBTreeNode node, Span<byte> buffer)
         {
             node.IsLeaf = (NodeType) buffer[0] switch
             {
@@ -274,7 +278,7 @@ namespace BTree
             return 5;
         }
 
-        private int ReadChildren(DiskBTreeNode node, Span<byte> buffer)
+        private int DeserializeChildren(DiskBTreeNode node, Span<byte> buffer)
         {
             if (node.IsLeaf)
                 return 0;
@@ -291,7 +295,7 @@ namespace BTree
             return (node.N + 1) * 8;
         }
 
-        private int ReadItems(DiskBTreeNode node, Span<byte> buffer)
+        private int DeserializeItems(DiskBTreeNode node, Span<byte> buffer)
         {
             var itemLength = _serializer.MaxSerializedItemLength;
             for (var i = 0; i < node.N; i++)
@@ -315,7 +319,7 @@ namespace BTree
             var buffer = (Span<byte>) stackalloc byte[9];
             buffer[0] = (byte) NodeType.Deleted;
             BitConverter.TryWriteBytes(buffer.Slice(1), lastDeletedNode);
-            WriteAt(GetOffset(diskNode.Id), buffer);
+            WriteOnDisk(GetOffset(diskNode.Id), buffer);
             WriteLastDeletedNode(diskNode.Id);
         }
 
@@ -392,7 +396,7 @@ namespace BTree
                 return id;
             }
             var buffer = (Span<byte>) stackalloc byte[9];
-            if (!ReadAt(GetOffset(lastDeletedNode), buffer) || buffer[0] != (byte) NodeType.Deleted)
+            if (!ReadFromDisk(GetOffset(lastDeletedNode), buffer) || buffer[0] != (byte) NodeType.Deleted)
                 ThrowCorruptedNode(lastDeletedNode);
             var newLastDeletedNode = BitConverter.ToInt64(buffer.Slice(1));
             WriteLastDeletedNode(newLastDeletedNode);

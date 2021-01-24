@@ -13,6 +13,10 @@ namespace BTree.Test
     [TestFixture(typeof(DiskBTree<>), 3)]
     [TestFixture(typeof(DiskBTree<>), 10)]
     [TestFixture(typeof(DiskBTree<>), 100)]
+    [TestFixture(typeof(CachingDiskBTree<>), 2)]
+    [TestFixture(typeof(CachingDiskBTree<>), 3)]
+    [TestFixture(typeof(CachingDiskBTree<>), 10)]
+    [TestFixture(typeof(CachingDiskBTree<>), 100)]
     public abstract class TestsBase<T>
     {
         private readonly Type _type;
@@ -47,6 +51,8 @@ namespace BTree.Test
                 return new BTree<T>(t);
             if (type == typeof(DiskBTree<>))
                 return new DiskBTree<T>(new MemoryStream(), t);
+            if (type == typeof(CachingDiskBTree<>))
+                return new CachingDiskBTree<T>(new MemoryStream(), t, 1024 * 1024 * 64);
             throw new NotSupportedException();
         }
     }
