@@ -11,6 +11,8 @@ namespace BTree
         private long? _lastDeletedNode;
         private long? _lastNode;
 
+        public long CacheMemoryUsage => _cache.MemoryUsage;
+
         public CachingDiskBTree(Stream stream, long memoryLimit)
             : base(stream)
         {
@@ -112,7 +114,10 @@ namespace BTree
             if (_root.HasValue)
                 ((DiskBTreeNode) rootNode).Id = _root.Value;
             else
+            {
                 base.ReadRoot(rootNode);
+                _root = ((DiskBTreeNode) rootNode).Id;
+            }
         }
 
         protected override void WriteLastDeletedNode(long id)
@@ -121,7 +126,7 @@ namespace BTree
             base.WriteLastDeletedNode(id);
         }
 
-        protected override long ReadLastDeletedNode() => _lastDeletedNode ?? base.ReadLastDeletedNode();
+        protected override long ReadLastDeletedNode() => _lastDeletedNode ?? (_lastDeletedNode = base.ReadLastDeletedNode()).Value;
 
         protected override void WriteLastNode(long id)
         {
@@ -129,7 +134,7 @@ namespace BTree
             base.WriteLastNode(id);
         }
 
-        protected override long ReadLastNode() => _lastNode ?? base.ReadLastNode();
+        protected override long ReadLastNode() => _lastNode ?? (_lastNode = base.ReadLastNode()).Value;
 
         protected override void WriteOnDisk(long offset, ReadOnlySpan<byte> buffer)
         {
@@ -137,7 +142,15 @@ namespace BTree
             base.WriteOnDisk(offset, buffer);
         }
 
-        protected override bool ReadFromDisk(long offset, Span<byte> buffer) => _cache.TryGet(offset, buffer) || base.ReadFromDisk(offset, buffer);
+        protected override bool ReadFromDisk(long offset, Span<byte> buffer)
+        {
+            if (_cache.TryGet(offset, buffer))
+                return true;
+            if (!base.ReadFromDisk(offset, buffer))
+                return false;
+            _cache.Set(offset, buffer);
+            return true;
+        }
     }
 
     internal class BTreeCache
@@ -146,7 +159,8 @@ namespace BTree
         private readonly Dictionary<long, Node> _dict;
         private Node _first;
         private Node _last;
-        private long _memoryUsage;
+        
+        public long MemoryUsage { get; private set; }
 
         public BTreeCache(long memoryLimit)
         {
@@ -173,7 +187,7 @@ namespace BTree
             node = new Node(offset, buffer);
             if (node.MemoryUsage > _memoryLimit)
                 return;
-            while (_memoryUsage + node.MemoryUsage > _memoryLimit && _first != null)
+            while (MemoryUsage + node.MemoryUsage > _memoryLimit && _first != null)
                 Delete(_first);
             Add(node);
         }
@@ -181,7 +195,7 @@ namespace BTree
         private void Add(Node node)
         {
             _dict[node.Key] = node;
-            _memoryUsage += node.MemoryUsage;
+            MemoryUsage += node.MemoryUsage;
             if (_last != null)
             {
                 node.Previous = _last;
@@ -195,7 +209,7 @@ namespace BTree
         private void Delete(Node node)
         {
             _dict.Remove(node.Key);
-            _memoryUsage -= node.MemoryUsage;
+            MemoryUsage -= node.MemoryUsage;
             if (node.Next != null)
             {
                 if (node.Previous != null)
