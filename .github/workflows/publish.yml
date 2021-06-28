@@ -14,6 +14,6 @@ jobs:
         with:
           PROJECT_FILE_PATH: BTree/BTree.csproj
           PACKAGE_NAME: BTree
-          VERSION_STATIC: 1.0.0
+          VERSION_STATIC: 1.0.1
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
           NUGET_SOURCE: https://api.nuget.org
